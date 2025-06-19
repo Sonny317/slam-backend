@@ -1,3 +1,5 @@
+// src/main/java/com/slam/slam_backend/entity/User.java
+
 package com.slam.slam_backend.entity;
 
 import jakarta.persistence.*;
@@ -15,23 +17,30 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, length = 50)
+    private String name; // ✅ 이름 추가
+
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
     @Column(nullable = false, length = 100)
     private String password;
 
+    @Column(nullable = false, length = 50)
+    private String affiliation; // ✅ 소속 추가
+
+    @Column // ✅ 관심사 (쉼표로 구분된 문자열)
+    private String interests;
+
+    @Column // ✅ 구사 언어
+    private String spokenLanguages;
+
+    @Column // ✅ 배우고 싶은 언어
+    private String desiredLanguages;
+
     @Column(nullable = false, length = 20)
-    private String role; // 예: MEMBER, STAFF
+    private String role; // 예: USER, ADMIN
 
     @Column(name = "profile_image_url")
     private String profileImage;
-
-
-    // ✅ 명시적인 생성자 추가 (id 없이)
-    public User(String email, String password, String role) {
-        this.email = email;
-        this.password = password;
-        this.role = role;
-    }
 }
