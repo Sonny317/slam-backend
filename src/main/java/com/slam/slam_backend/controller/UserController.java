@@ -33,10 +33,12 @@ public class UserController {
     // ✅ 회원가입 처리 (RegisterRequest DTO를 받아서 처리)
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        userService.registerUser(
-                new User(request.getEmail(), passwordEncoder.encode(request.getPassword()), request.getRole())
-        );
-        return ResponseEntity.ok("회원가입 완료");
+        try {
+            userService.registerUser(request);
+            return ResponseEntity.ok("회원가입 완료");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/login")
