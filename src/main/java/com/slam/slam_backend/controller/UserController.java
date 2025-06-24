@@ -7,8 +7,10 @@ import com.slam.slam_backend.service.UserService;
 import com.slam.slam_backend.entity.User;
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +31,10 @@ public class UserController {
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
+
+    // ✅ application.properties에 설정된 파일 업로드 경로를 주입받습니다.
+    @Value("${file.upload-dir}")
+    private String uploadDir;
 
     // ✅ 회원가입 처리 (RegisterRequest DTO를 받아서 처리)
     @PostMapping("/register")
@@ -51,23 +57,47 @@ public class UserController {
         }
     }
 
+    // ✅ 프로필 업로드 로직 수정
     @PostMapping("/upload-profile")
     public ResponseEntity<?> uploadProfileImage(@RequestParam("email") String email,
                                                 @RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("업로드할 파일을 선택해주세요.");
+        }
+
         String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        String uploadDir = System.getProperty("user.dir") + "/src/main/resources/static/images/";
 
-        File dir = new File(uploadDir);
-        if (!dir.exists()) dir.mkdirs();
+        // 설정된 외부 경로에 폴더가 없으면 생성합니다.
+        File directory = new File(uploadDir);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
 
-        File destination = new File(uploadDir + filename);
-        file.transferTo(destination); // ✅ 반드시 한 번만 호출!
+        // 파일을 최종 목적지에 저장합니다.
+        File destination = new File(uploadDir + File.separator + filename);
+        file.transferTo(destination);
 
-        User user = userRepository.findByEmail(email).orElseThrow();
-        user.setProfileImage("/images/" + filename); // 🔁 프론트에서 접근할 수 있는 경로
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 프론트엔드가 사용할 이미지 URL 경로
+        String imagePath = "/images/" + filename;
+        user.setProfileImage(imagePath);
         userRepository.save(user);
 
-        return ResponseEntity.ok("프로필 업로드 완료");
+        return ResponseEntity.ok(Map.of("profileImage", imagePath));
+    }
+
+    // ✅ 6/24 추가: 자기소개 업데이트 API
+    @PostMapping("/profile/update")
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        String bio = payload.get("bio");
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setBio(bio);
+        userRepository.save(user);
+
+        return ResponseEntity.ok("Profile updated successfully");
     }
 
 
