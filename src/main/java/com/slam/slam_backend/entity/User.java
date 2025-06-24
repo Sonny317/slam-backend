@@ -40,7 +40,10 @@ public class User {
 
     @Column(nullable = false, length = 20)
     private String role; // 예: USER, ADMIN
-
+    
+    @Column(length = 500) // ✅ 자기소개 필드
+    private String bio;
+    
     @Column(name = "profile_image_url")
     private String profileImage;
 }
