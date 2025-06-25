@@ -42,7 +42,8 @@ public class UserService {
     }
 
 
-    public String loginAndGetToken(String email, String rawPassword) {
+    // ✅ 수정: 메소드 이름을 login으로 바꾸고, User 객체를 반환하도록 변경
+    public User login(String email, String rawPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("이메일이 존재하지 않습니다."));
 
@@ -50,6 +51,6 @@ public class UserService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
 
-        return jwtUtil.generateToken(user.getEmail());
+        return user; // ✅ 인증에 성공한 User 객체 반환
     }
 }
