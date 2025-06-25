@@ -1,8 +1,10 @@
 package com.slam.slam_backend.controller;
 
 import com.slam.slam_backend.dto.LoginRequest;
+import com.slam.slam_backend.dto.LoginResponse;
 import com.slam.slam_backend.dto.RegisterRequest;
 import com.slam.slam_backend.repository.UserRepository;
+import com.slam.slam_backend.security.JwtTokenProvider;
 import com.slam.slam_backend.service.UserService;
 import com.slam.slam_backend.entity.User;
 import java.io.File;
@@ -31,7 +33,7 @@ public class UserController {
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
-
+    private final JwtTokenProvider jwtTokenProvider; // ✅ JWT 생성을 위해 추가
     // ✅ application.properties에 설정된 파일 업로드 경로를 주입받습니다.
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -47,16 +49,30 @@ public class UserController {
         }
     }
 
+    // ✅ 로그인 API 로직 전체 수정
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            String token = userService.loginAndGetToken(request.getEmail(), request.getPassword());
-            return ResponseEntity.ok().body(new TokenResponse(token));
+            // 1. UserService에서 User 정보 가져오기
+            User user = userService.login(request.getEmail(), request.getPassword());
+
+            // 2. 컨트롤러에서 토큰 생성하기
+            String token = jwtTokenProvider.generateToken(user.getEmail());
+
+            // 3. LoginResponse DTO를 사용해 응답 구성하기
+            LoginResponse responseDto = LoginResponse.builder()
+                    .token(token)
+                    .email(user.getEmail())
+                    .name(user.getName())
+                    .profileImage(user.getProfileImage()) // ✅ 프로필 이미지 경로 포함
+                    .build();
+
+            return ResponseEntity.ok(responseDto);
+
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
     // ✅ 프로필 업로드 로직 수정
     @PostMapping("/upload-profile")
     public ResponseEntity<?> uploadProfileImage(@RequestParam("email") String email,
