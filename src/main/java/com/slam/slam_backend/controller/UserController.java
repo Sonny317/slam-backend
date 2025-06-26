@@ -116,6 +116,18 @@ public class UserController {
         return ResponseEntity.ok("Profile updated successfully");
     }
 
+    // ✅ 추가: 이메일 인증 코드 발송 API
+    @PostMapping("/send-verification-code")
+    public ResponseEntity<?> sendVerificationCode(@RequestBody Map<String, String> payload) {
+        try {
+            String email = payload.get("email");
+            userService.sendVerificationCode(email);
+            return ResponseEntity.ok("인증 코드가 이메일로 전송되었습니다.");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("이메일 전송에 실패했습니다: " + e.getMessage());
+        }
+    }
+
 
 
     // ✅ 토큰 JSON 형태로 반환할 내부 클래스
