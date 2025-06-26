@@ -38,8 +38,13 @@ public class User {
     @Column // ✅ 배우고 싶은 언어
     private String desiredLanguages;
 
+    // ✅ 수정: 역할 필드 (MEMBER, STAFF, PRESIDENT 등)
     @Column(nullable = false, length = 20)
-    private String role; // 예: USER, ADMIN
+    private String role;
+
+    // ✅ 추가: 멤버십 상태 필드
+    @Column
+    private String membership; // 예: "ACTIVE", "INACTIVE", "VIP" 등
     
     @Column(length = 500) // ✅ 자기소개 필드
     private String bio;
