@@ -1,9 +1,13 @@
-// src/main/java/com/slam/slam_backend/entity/User.java
-
 package com.slam.slam_backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.List;
 
 @Entity
 @Getter @Setter
@@ -11,14 +15,14 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Table(name = "users")
-public class User {
+public class User implements UserDetails { // ✅ UserDetails 구현
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, length = 50)
-    private String name; // ✅ 이름 추가
+    private String name;
 
     @Column(nullable = false, unique = true, length = 100)
     private String email;
@@ -26,29 +30,59 @@ public class User {
     @Column(nullable = false, length = 100)
     private String password;
 
-    @Column(nullable = false, length = 50)
-    private String affiliation; // ✅ 소속 추가
+    @Column(length = 50)
+    private String affiliation;
 
-    @Column // ✅ 관심사 (쉼표로 구분된 문자열)
-    private String interests;
+    @Column(length = 500)
+    private String bio;
 
-    @Column // ✅ 구사 언어
-    private String spokenLanguages;
-
-    @Column // ✅ 배우고 싶은 언어
-    private String desiredLanguages;
-
-    // ✅ 수정: 역할 필드 (MEMBER, STAFF, PRESIDENT 등)
     @Column(nullable = false, length = 20)
     private String role;
 
-    // ✅ 추가: 멤버십 상태 필드
     @Column
-    private String membership; // 예: "ACTIVE", "INACTIVE", "VIP" 등
-    
-    @Column(length = 500) // ✅ 자기소개 필드
-    private String bio;
-    
+    private String interests;
+
+    @Column
+    private String membership;
+
     @Column(name = "profile_image_url")
     private String profileImage;
+
+    @Column
+    private String spokenLanguages;
+
+    @Column
+    private String desiredLanguages;
+
+    // --- UserDetails 인터페이스 메소드 구현 ---
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role));
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
 }
