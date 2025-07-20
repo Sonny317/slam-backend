@@ -12,13 +12,10 @@ public class RegisterRequest {
     private String name;
     private String email;
     private String password;
-    private String affiliation;
+
     private String code; // ✅ 이메일 인증코드 필드 다시 추가
 
-    // 프로필 강화 정보
-    private String interests;
-    private String spokenLanguages;
-    private String desiredLanguages;
+
 
     // 약관 동의
     private boolean termsOfServiceAgreed;
