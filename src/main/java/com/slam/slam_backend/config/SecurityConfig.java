@@ -35,9 +35,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ /api/events 경로는 인증 없이 허용
+                        // ✅ /images/** 와 /api/events/** 경로도 인증 없이 허용하도록 수정
                         .requestMatchers("/auth/**", "/images/**", "/api/events/**").permitAll()
-                        .requestMatchers("/api/users/**", "/api/memberships/**").authenticated() // 인증이 필요한 다른 API들
+                        .requestMatchers("/api/users/**", "/api/memberships/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class);
