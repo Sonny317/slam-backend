@@ -1,5 +1,3 @@
-// src/main/java/com/slam/slam_backend/dto/RegisterRequest.java
-
 package com.slam.slam_backend.dto;
 
 import lombok.Getter;
@@ -12,10 +10,12 @@ public class RegisterRequest {
     private String name;
     private String email;
     private String password;
+    private String code;
 
-    private String code; // ✅ 이메일 인증코드 필드 다시 추가
-
-
+    // ✅ 이 필드들이 누락되어 있었습니다.
+    private String interests;
+    private String spokenLanguages;
+    private String desiredLanguages;
 
     // 약관 동의
     private boolean termsOfServiceAgreed;
