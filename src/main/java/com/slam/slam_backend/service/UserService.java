@@ -2,7 +2,9 @@ package com.slam.slam_backend.service;
 
 import com.slam.slam_backend.dto.RegisterRequest;
 import com.slam.slam_backend.entity.User;
+import com.slam.slam_backend.entity.VerificationCode;
 import com.slam.slam_backend.repository.UserRepository;
+import com.slam.slam_backend.repository.VerificationCodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -28,37 +31,59 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final VerificationCodeRepository verificationCodeRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    private final Map<String, String> verificationCodes = new ConcurrentHashMap<>();
+    //private final Map<String, String> verificationCodes = new ConcurrentHashMap<>();
 
-    // ... (sendVerificationCode, registerUser, login, generateRandomCode 메소드는 기존과 동일)
+    @Transactional
     public void sendVerificationCode(String email) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("이미 가입된 이메일입니다.");
         }
+
         String code = generateRandomCode();
-        verificationCodes.put(email, code);
+
+        // 이메일로 기존 코드가 있는지 확인하고, 있다면 덮어쓰거나 새로 만듭니다.
+        VerificationCode verificationCode = verificationCodeRepository.findByEmail(email)
+                .orElse(new VerificationCode(email, code));
+
+        verificationCodeRepository.save(new VerificationCode(email, code)); // ✅ DB에 저장
+
         String subject = "[SLAM] 회원가입 인증 코드입니다.";
         String text = "회원가입을 완료하려면 아래 인증 코드를 입력해주세요.\n\n" + "인증 코드: " + code;
+
         emailService.sendEmail(email, subject, text);
     }
 
+    @Transactional
     public User registerUser(RegisterRequest request) {
-        String storedCode = verificationCodes.get(request.getEmail());
-        if (storedCode == null || !storedCode.equals(request.getCode())) {
+        // ✅ DB에서 인증 코드를 가져와서 검증합니다.
+        VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("인증 코드가 발급되지 않았거나 만료되었습니다."));
+
+        if (storedCode.getExpiryDate().isBefore(LocalDateTime.now())) {
+            verificationCodeRepository.delete(storedCode);
+            throw new IllegalArgumentException("인증 코드가 만료되었습니다.");
+        }
+
+        if (!storedCode.getCode().equals(request.getCode())) {
             throw new IllegalArgumentException("인증 코드가 올바르지 않습니다.");
         }
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-
+                .interests(request.getInterests())
+                .spokenLanguages(request.getSpokenLanguages())
+                .desiredLanguages(request.getDesiredLanguages())
                 .role("MEMBER")
                 .build();
-        verificationCodes.remove(request.getEmail());
+
+        verificationCodeRepository.delete(storedCode); // ✅ 검증 완료 후 DB에서 코드 삭제
         return userRepository.save(user);
     }
 
