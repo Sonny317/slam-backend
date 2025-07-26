@@ -35,8 +35,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ /images/** 와 /api/events/** 경로도 인증 없이 허용하도록 수정
                         .requestMatchers("/auth/**", "/images/**", "/api/events/**").permitAll()
+                        // ✅ 관리자 전용 경로 규칙 추가
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**", "/api/memberships/**").authenticated()
                         .anyRequest().authenticated()
                 )

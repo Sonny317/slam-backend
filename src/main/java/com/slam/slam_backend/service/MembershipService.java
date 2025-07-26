@@ -10,6 +10,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class MembershipService {
@@ -39,5 +41,11 @@ public class MembershipService {
                 .build();
 
         return applicationRepository.save(application);
+    }
+
+    // ✅ 추가: 모든 멤버십 신청 목록을 조회하는 메소드
+    @Transactional(readOnly = true)
+    public List<MembershipApplication> findAllApplications() {
+        return applicationRepository.findAll();
     }
 }
