@@ -1,6 +1,7 @@
 package com.slam.slam_backend.controller;
 
 import com.slam.slam_backend.dto.EventDTO;
+import com.slam.slam_backend.dto.RsvpRequest;
 import com.slam.slam_backend.service.EventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value; // ✅ 임포트 추가
@@ -8,10 +9,16 @@ import org.springframework.core.io.FileSystemResource; // ✅ 임포트 추가
 import org.springframework.core.io.Resource; // ✅ 임포트 추가
 import org.springframework.http.MediaType; // ✅ 임포트 추가
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication; // ✅ 임포트 추가
+import com.slam.slam_backend.dto.RsvpRequest; // ✅ 임포트 추가
+import com.slam.slam_backend.entity.EventRsvp; // ✅ 임포트 추가
+
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.file.Paths; // ✅ 임포트 추가
 import java.util.List;
+import java.util.Map;
+import java.util.Optional; // ✅ 임포트 추가
 
 @RestController
 @RequestMapping("/api/events")
@@ -60,4 +67,36 @@ public class EventController {
         }
     }
     // --- ⬆️ 여기까지 추가 ⬆️ ---
+
+    // ✅ 추가: 이벤트 참석(RSVP) 등록 API
+    @PostMapping("/{eventId}/rsvp")
+    public ResponseEntity<?> submitRsvp(@PathVariable Long eventId, @RequestBody RsvpRequest rsvpRequest, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+        }
+
+        try {
+            String userEmail = authentication.getName();
+            eventService.processRsvp(eventId, userEmail, rsvpRequest);
+
+            // 친구가 요청한 응답 형식
+            return ResponseEntity.ok(Map.of("success", true, "message", "RSVP updated"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    // ✅ 추가: 내 RSVP 상태 조회 API
+    @GetMapping("/{eventId}/my-rsvp")
+    public ResponseEntity<?> getMyRsvp(@PathVariable Long eventId, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+        }
+
+        String userEmail = authentication.getName();
+        Optional<EventRsvp> rsvp = eventService.findMyRsvp(eventId, userEmail);
+
+        // RSVP 정보가 있으면 그 정보를, 없으면 빈 객체를 반환
+        return ResponseEntity.ok(rsvp.orElse(null));
+    }
 }
