@@ -80,18 +80,31 @@ public class UserController {
         return ResponseEntity.ok(Map.of("profileImage", imagePath));
     }
 
-    @PostMapping("/api/users/profile/update")
-    public ResponseEntity<?> updateProfile(Authentication authentication, @RequestBody Map<String, String> payload) {
-        // 인증 객체에서 이메일을 직접 가져와서 보안 강화
-        String email = authentication.getName();
-        String bio = payload.get("bio");
+    // ✅ 1. 자기소개 업데이트 전용 API
+    @PostMapping("/api/users/profile/bio")
+    public ResponseEntity<?> updateMyBio(Authentication authentication, @RequestBody Map<String, String> payload) {
+        try {
+            String userEmail = authentication.getName();
+            String bio = payload.get("bio");
+            User updatedUser = userService.updateBio(userEmail, bio);
+            return ResponseEntity.ok(MyPageResponse.fromEntity(updatedUser));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        user.setBio(bio);
-        userRepository.save(user);
-
-        // 업데이트된 전체 사용자 정보를 다시 보내주는 것이 좋습니다.
-        return ResponseEntity.ok(MyPageResponse.fromEntity(user));
+    // ✅ 2. 프로필 이미지 업데이트 전용 API
+    @PostMapping("/api/users/profile/image")
+    public ResponseEntity<?> updateMyProfileImage(Authentication authentication, @RequestPart("file") MultipartFile file) {
+        try {
+            String userEmail = authentication.getName();
+            User updatedUser = userService.updateProfileImage(userEmail, file);
+            return ResponseEntity.ok(MyPageResponse.fromEntity(updatedUser));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body("프로필 이미지 업데이트 중 오류가 발생했습니다.");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/auth/send-verification-code")
