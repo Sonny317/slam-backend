@@ -1,20 +1,20 @@
 package com.slam.slam_backend.controller;
 
-import com.slam.slam_backend.dto.LoginRequest;
-import com.slam.slam_backend.dto.LoginResponse;
-import com.slam.slam_backend.dto.MyPageResponse;
-import com.slam.slam_backend.dto.RegisterRequest;
+import com.slam.slam_backend.dto.*;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.repository.UserRepository;
 import com.slam.slam_backend.security.JwtTokenProvider;
 import com.slam.slam_backend.service.UserService;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.slam.slam_backend.dto.PasswordResetRequest;
 
 import java.io.File;
 import java.io.IOException;
@@ -129,4 +129,26 @@ public class UserController {
 
         return ResponseEntity.ok(MyPageResponse.fromEntity(user));
     }
+
+    @PostMapping("/auth/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> payload) {
+        try {
+            userService.createPasswordResetTokenForUser(payload.get("email"));
+            return ResponseEntity.ok(Map.of("message", "If an account with that email exists, a password reset link has been sent."));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("message", "If an account with that email exists, a password reset link has been sent."));
+        }
+    }
+
+    @PostMapping("/auth/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody PasswordResetRequest request) {
+        try {
+            userService.changePassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", "Password has been successfully reset."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+
 }
