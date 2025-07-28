@@ -53,6 +53,7 @@ public class UserController {
                     .email(user.getEmail())
                     .name(user.getName())
                     .profileImage(user.getProfileImage())
+                    .role(user.getRole()) // ✅ 응답에 role 추가
                     .build();
 
             return ResponseEntity.ok(responseDto);

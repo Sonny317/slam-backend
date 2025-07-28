@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.regex.Pattern; // ✅ Pattern 임포트 추가
 
 import java.io.File;
 import java.io.IOException;
@@ -65,6 +66,9 @@ public class UserService {
             throw new IllegalArgumentException("인증 코드가 올바르지 않습니다.");
         }
 
+        // --- ✅ 비밀번호 규칙 검증 로직 추가 ---
+        validatePassword(request.getPassword());
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -77,6 +81,17 @@ public class UserService {
 
         verificationCodeRepository.delete(storedCode);
         return userRepository.save(user);
+
+
+    }
+
+    // ✅ 비밀번호 규칙을 검사하는 private 메소드
+    private void validatePassword(String password) {
+        // 6자리 이상, 특수문자 포함
+        String passwordRegex = "^(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{6,}$";
+        if (!Pattern.matches(passwordRegex, password)) {
+            throw new IllegalArgumentException("비밀번호는 특수문자를 포함하여 6자리 이상이어야 합니다.");
+        }
     }
 
     public User login(String email, String rawPassword) {
