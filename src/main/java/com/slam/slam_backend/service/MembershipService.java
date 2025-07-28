@@ -5,6 +5,8 @@ import com.slam.slam_backend.entity.MembershipApplication;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.repository.MembershipApplicationRepository;
 import com.slam.slam_backend.repository.UserRepository;
+import com.slam.slam_backend.entity.UserMembership; // ✅ 임포트 추가
+import com.slam.slam_backend.repository.UserMembershipRepository; // ✅ 임포트 추가
 import lombok.RequiredArgsConstructor;
 import com.slam.slam_backend.dto.ApplicationDTO; // ✅ DTO 임포트
 import lombok.Setter;
@@ -21,6 +23,7 @@ public class MembershipService {
 
     private final MembershipApplicationRepository applicationRepository;
     private final UserRepository userRepository;
+    private final UserMembershipRepository userMembershipRepository;
 
     @Transactional
     public MembershipApplication applyForMembership(String userEmail, MembershipRequest request) {
@@ -65,9 +68,14 @@ public class MembershipService {
         application.setStatus("APPROVED");
         applicationRepository.save(application);
 
-        // 2. 해당 사용자의 membership 필드를 'ACTIVE' 상태와 지부 정보로 업데이트
+        // 2. ✅ 새로운 UserMembership 객체를 생성하여 DB에 저장합니다.
         User user = application.getUser();
-        user.setMembership("ACTIVE_" + application.getSelectedBranch());
-        userRepository.save(user);
+        UserMembership newMembership = UserMembership.builder()
+                .user(user)
+                .branchName(application.getSelectedBranch())
+                .status("ACTIVE")
+                .build();
+
+        userMembershipRepository.save(newMembership);
     }
 }
