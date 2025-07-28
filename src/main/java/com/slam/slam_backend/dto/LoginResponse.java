@@ -12,4 +12,5 @@ public class LoginResponse {
     private String email;
     private String name;
     private String profileImage;
+    private String role; // ✅ 역할(role) 필드 추가
 }
