@@ -1,8 +1,10 @@
 package com.slam.slam_backend.service;
 
 import com.slam.slam_backend.dto.RegisterRequest;
+import com.slam.slam_backend.entity.PasswordResetToken;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.VerificationCode;
+import com.slam.slam_backend.repository.PasswordResetTokenRepository;
 import com.slam.slam_backend.repository.UserRepository;
 import com.slam.slam_backend.repository.VerificationCodeRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final VerificationCodeRepository verificationCodeRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository; // ✅ Repository 주입
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -126,5 +129,44 @@ public class UserService {
 
         user.setProfileImage("/images/" + filename);
         return userRepository.save(user);
+    }
+
+    // ✅ 추가: 비밀번호 재설정 요청 처리
+    @Transactional
+    public void createPasswordResetTokenForUser(String email) {
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            // 이메일이 존재하지 않아도, 보안을 위해 성공한 것처럼 보이게 아무 작업도 하지 않고 넘어갑니다.
+            return;
+        }
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken myToken = new PasswordResetToken(user, token);
+        passwordResetTokenRepository.save(myToken);
+
+        // 프론트엔드의 비밀번호 재설정 페이지 주소
+        String resetUrl = "http://localhost:3000/reset-password?token=" + token;
+
+        String subject = "[SLAM] 비밀번호 재설정 요청";
+        String text = "비밀번호를 재설정하려면 아래 링크를 클릭하세요:\n\n" + resetUrl;
+
+        emailService.sendEmail(user.getEmail(), subject, text);
+    }
+
+    // ✅ 추가: 토큰을 이용한 비밀번호 변경
+    @Transactional
+    public void changePassword(String token, String newPassword) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 토큰입니다."));
+
+        if (resetToken.isExpired()) {
+            throw new IllegalArgumentException("만료된 토큰입니다.");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // 사용 완료된 토큰은 삭제
+        passwordResetTokenRepository.delete(resetToken);
     }
 }
