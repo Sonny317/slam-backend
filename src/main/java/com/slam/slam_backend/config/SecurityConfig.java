@@ -51,6 +51,10 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.addAllowedOrigin("http://localhost:3000");
         configuration.addAllowedOrigin("http://localhost:8080");
+        // --- ✅ 허용할 주소 목록 ---
+
+        configuration.addAllowedOrigin("https://slam-taipei.vercel.app"); // ✅ 배포된 프론트엔드 주소
+        // -------------------------
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
         configuration.setAllowCredentials(true);
