@@ -39,7 +39,8 @@ dependencies {
 
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	runtimeOnly 'com.mysql:mysql-connector-j'
+	//runtimeOnly 'com.mysql:mysql-connector-j'
+	runtimeOnly 'org.postgresql:postgresql'      // ✅ 이 줄을 새로 추가합니다.
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
