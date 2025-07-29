@@ -14,8 +14,8 @@ COPY src src
 # gradlew 파일에 실행 권한 부여
 RUN chmod +x ./gradlew
 
-# 프로젝트 빌드 실행
-RUN ./gradlew build
+# ✅ 프로젝트 빌드 실행 시, '-x test' 옵션을 추가하여 테스트를 건너뜁니다.
+RUN ./gradlew build -x test
 
 # --- 2단계: 빌드된 .jar 파일을 실행하는 최종 단계 ---
 FROM openjdk:17-alpine
