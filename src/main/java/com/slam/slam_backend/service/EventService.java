@@ -9,6 +9,7 @@ import com.slam.slam_backend.repository.EventRepository;
 import com.slam.slam_backend.repository.EventRsvpRepository;
 import com.slam.slam_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import com.slam.slam_backend.dto.EventRequest; // ✅ 임포트 추가
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,5 +78,53 @@ public class EventService {
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + userEmail));
 
         return eventRsvpRepository.findByUser_IdAndEvent_Id(user.getId(), eventId);
+    }
+
+    @Transactional
+    public Event createEvent(EventRequest request) {
+        Event newEvent = Event.builder()
+                .branch(request.getBranch())
+                .title(request.getTitle())
+                .theme(request.getTheme())
+                .eventDateTime(request.getEventDateTime())
+                .location(request.getLocation())
+                .description(request.getDescription())
+                .imageUrl(request.getImageUrl())
+                .capacity(request.getCapacity())
+                .price(request.getPrice())
+                .currentAttendees(0) // 초기 참석자는 0명
+                .build();
+        return eventRepository.save(newEvent);
+    }
+
+    @Transactional
+    public Event updateEvent(Long eventId, EventRequest request) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId));
+
+        // Event 엔티티에 setter가 없으므로 builder로 새로 만듭니다.
+        Event updatedEvent = Event.builder()
+                .id(event.getId()) // 기존 ID 유지
+                .branch(request.getBranch())
+                .title(request.getTitle())
+                .theme(request.getTheme())
+                .eventDateTime(request.getEventDateTime())
+                .location(request.getLocation())
+                .description(request.getDescription())
+                .imageUrl(request.getImageUrl())
+                .capacity(request.getCapacity())
+                .price(request.getPrice())
+                .currentAttendees(event.getCurrentAttendees()) // 기존 참석자 수 유지
+                .build();
+        return eventRepository.save(updatedEvent);
+    }
+
+    @Transactional
+    public void deleteEvent(Long eventId) {
+        if (!eventRepository.existsById(eventId)) {
+            throw new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId);
+        }
+        // TODO: 이벤트에 연결된 RSVP 정보도 함께 삭제하는 로직 추가 필요
+        eventRepository.deleteById(eventId);
     }
 }

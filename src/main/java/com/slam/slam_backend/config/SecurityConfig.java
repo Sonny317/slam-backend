@@ -31,14 +31,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> {})
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // ✅ CSRF 보호 기능을 비활성화합니다.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/images/**", "/api/events/**").permitAll()
-                        // ✅ 관리자 전용 경로 규칙 추가
+                        .requestMatchers("/", "/auth/**", "/images/**", "/api/events", "/api/events/{eventId:[0-9]+}").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**", "/api/memberships/**").authenticated()
+                        .requestMatchers("/api/users/**", "/api/memberships/**", "/api/events/**/rsvp").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class);
@@ -50,11 +50,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.addAllowedOrigin("http://localhost:3000");
-        configuration.addAllowedOrigin("http://localhost:8080");
-        // --- ✅ 허용할 주소 목록 ---
-
-        configuration.addAllowedOrigin("https://slam-taipei.vercel.app"); // ✅ 배포된 프론트엔드 주소
-        // -------------------------
+        configuration.addAllowedOrigin("https://slam-taipei.vercel.app");
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
         configuration.setAllowCredentials(true);
