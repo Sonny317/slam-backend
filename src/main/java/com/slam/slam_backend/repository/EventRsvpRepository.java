@@ -7,4 +7,7 @@ import java.util.Optional;
 public interface EventRsvpRepository extends JpaRepository<EventRsvp, Long> {
     // 특정 사용자와 특정 이벤트에 대한 RSVP 정보를 찾는 메소드
     Optional<EventRsvp> findByUser_IdAndEvent_Id(Long userId, Long eventId);
+
+    // ✅ 추가: 특정 이벤트에 대한 모든 RSVP 기록을 삭제하는 메소드
+    void deleteAllByEventId(Long eventId);
 }
