@@ -25,40 +25,67 @@ public class MyPageResponse {
     public static MyPageResponse fromEntity(User user) {
         // ✅ 단일 멤버십 문자열을 리스트로 변환합니다.
         List<String> memberships = new ArrayList<>();
-        if (user.getMembership() != null && !user.getMembership().isEmpty()) {
-            // "ACTIVE_NCCU" 형태에서 지부 이름만 추출
+        
+        // 디버그 로그 추가
+        System.out.println("MyPageResponse - User ID: " + user.getId());
+        System.out.println("MyPageResponse - User membership field: " + user.getMembership());
+        System.out.println("MyPageResponse - User memberships collection size: " + user.getMemberships().size());
+        
+        // User.membership 필드가 null이거나 비어있으면 멤버십이 없는 것으로 간주
+        if (user.getMembership() == null || user.getMembership().isEmpty()) {
+            System.out.println("MyPageResponse - User has no membership field");
+        } else {
             String membership = user.getMembership();
+            System.out.println("MyPageResponse - Processing membership field: " + membership);
+            
             if (membership.contains("_")) {
+                // "ACTIVE_NCCU" 형태에서 지부 이름만 추출
                 String[] parts = membership.split("_");
                 if (parts.length >= 2) {
                     String status = parts[0];
                     String branchName = parts[1];
                     if ("ACTIVE".equals(status)) {
                         memberships.add(branchName);
+                        System.out.println("MyPageResponse - Added from membership field: " + branchName);
                     }
                 }
             } else {
-                // 단순한 지부 이름인 경우
+                // 단순한 지부 이름인 경우 (예: "NTU", "NCCU")
                 memberships.add(membership);
+                System.out.println("MyPageResponse - Added from membership field: " + membership);
             }
         }
         
-        // 기존 멤버십 컬렉션에서도 ACTIVE 상태인 것들을 추가
-        List<String> activeMemberships = user.getMemberships().stream()
-                .filter(m -> "ACTIVE".equals(m.getStatus()))
-                .map(UserMembership::getBranchName)
+        // UserMembership 컬렉션이 비어있지 않은 경우에만 처리
+        if (!user.getMemberships().isEmpty()) {
+            List<String> activeMemberships = user.getMemberships().stream()
+                    .filter(m -> m != null && "ACTIVE".equals(m.getStatus()) && m.getBranchName() != null && !m.getBranchName().isEmpty())
+                    .map(UserMembership::getBranchName)
+                    .collect(Collectors.toList());
+            
+            System.out.println("MyPageResponse - Active memberships from collection: " + activeMemberships);
+            memberships.addAll(activeMemberships);
+        } else {
+            System.out.println("MyPageResponse - User has no memberships collection");
+        }
+        
+                System.out.println("MyPageResponse - Final memberships: " + memberships);
+        
+        // 최종 검증: 멤버십이 실제로 유효한지 확인
+        List<String> validMemberships = memberships.stream()
+                .filter(membership -> membership != null && !membership.isEmpty() && !membership.equals("null"))
                 .collect(Collectors.toList());
         
-        memberships.addAll(activeMemberships);
-
+        System.out.println("MyPageResponse - Valid memberships after filtering: " + validMemberships);
+        
         return MyPageResponse.builder()
                 .userId(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
                 .bio(user.getBio())
                 .profileImage(user.getProfileImage())
-                .role(user.getRole()) // ✅ 역할 정보 추가
-                .memberships(memberships) // ✅ 최종 멤버십 리스트를 담아줍니다.
+                .role(user.getRole())
+                .memberships(validMemberships)
                 .build();
     }
 }

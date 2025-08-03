@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonBackReference; // ✅ JSON 무한 루프 방지
 
 @Entity
 @Getter
@@ -22,6 +23,7 @@ public class UserMembership {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonBackReference // ✅ JSON 무한 루프 방지
     private User user;
 
     @Column(nullable = false)

@@ -19,6 +19,7 @@ import java.nio.file.Paths; // ✅ 임포트 추가
 import java.util.List;
 import java.util.Map;
 import java.util.Optional; // ✅ 임포트 추가
+import java.util.stream.Collectors; // ✅ Collectors 임포트 추가
 
 @RestController
 @RequestMapping("/api/events")
@@ -33,11 +34,13 @@ public class EventController {
     @GetMapping
     public ResponseEntity<List<EventDTO>> getAllEvents(@RequestParam(required = false) String branch) {
         List<EventDTO> events = eventService.findAllEvents(branch);
+        System.out.println("EventsPage API called - Total events: " + events.size());
+        System.out.println("Events: " + events.stream().map(e -> e.getTitle() + " (" + e.getBranch() + ")").collect(Collectors.toList()));
         return ResponseEntity.ok(events);
     }
 
-    @GetMapping("/{eventId}")
-    public ResponseEntity<EventDTO> getEventById(@PathVariable Long eventId) {
+    @GetMapping("/detail")
+    public ResponseEntity<EventDTO> getEventById(@RequestParam Long eventId) {
         try {
             EventDTO event = eventService.findEventById(eventId);
             return ResponseEntity.ok(event);
@@ -47,8 +50,8 @@ public class EventController {
     }
 
     // --- ⬇️ 문제 진단을 위한 테스트 API ⬇️ ---
-    @GetMapping("/image-test/{imageName}")
-    public ResponseEntity<Resource> getImage(@PathVariable String imageName) {
+    @GetMapping("/image-test")
+    public ResponseEntity<Resource> getImage(@RequestParam String imageName) {
         try {
             // C:/slam-uploads 폴더에서 직접 이미지를 찾아봅니다.
             Resource resource = new FileSystemResource(Paths.get(uploadDir, imageName));
@@ -69,8 +72,8 @@ public class EventController {
     // --- ⬆️ 여기까지 추가 ⬆️ ---
 
     // ✅ 추가: 이벤트 참석(RSVP) 등록 API
-    @PostMapping("/{eventId}/rsvp")
-    public ResponseEntity<?> submitRsvp(@PathVariable Long eventId, @RequestBody RsvpRequest rsvpRequest, Authentication authentication) {
+    @PostMapping("/rsvp")
+    public ResponseEntity<?> submitRsvp(@RequestParam Long eventId, @RequestBody RsvpRequest rsvpRequest, Authentication authentication) {
         if (authentication == null) {
             return ResponseEntity.status(401).body("로그인이 필요합니다.");
         }
@@ -87,8 +90,8 @@ public class EventController {
     }
 
     // ✅ 추가: 내 RSVP 상태 조회 API
-    @GetMapping("/{eventId}/my-rsvp")
-    public ResponseEntity<?> getMyRsvp(@PathVariable Long eventId, Authentication authentication) {
+    @GetMapping("/my-rsvp")
+    public ResponseEntity<?> getMyRsvp(@RequestParam Long eventId, Authentication authentication) {
         if (authentication == null) {
             return ResponseEntity.status(401).body("로그인이 필요합니다.");
         }
