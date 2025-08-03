@@ -16,6 +16,7 @@ public class MyPageResponse {
     private String email;
     private String bio;
     private String profileImage;
+    private String role; // ✅ role 필드 추가
     private List<String> memberships; // ✅ String에서 List<String>으로 변경
     // 나중에 게시글, 댓글 목록도 여기에 추가할 수 있습니다.
 
@@ -33,6 +34,7 @@ public class MyPageResponse {
                 .email(user.getEmail())
                 .bio(user.getBio())
                 .profileImage(user.getProfileImage())
+                .role(user.getRole()) // ✅ 역할 정보 추가
                 .memberships(activeMemberships) // ✅ 추출한 리스트를 담아줍니다.
                 .build();
     }
