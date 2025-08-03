@@ -38,4 +38,21 @@ public class EventDTO {
                 .price(event.getPrice())
                 .build();
     }
+
+    // EventDTO를 Event 엔티티로 변환하는 메소드
+    public Event toEntity() {
+        Event event = new Event();
+        event.setId(this.id);
+        event.setBranch(this.branch);
+        event.setTitle(this.title);
+        event.setTheme(this.theme);
+        event.setEventDateTime(this.eventDateTime);
+        event.setLocation(this.location);
+        event.setDescription(this.description);
+        event.setImageUrl(this.imageUrl);
+        event.setCapacity(this.capacity);
+        event.setCurrentAttendees(this.currentAttendees);
+        event.setPrice(this.price);
+        return event;
+    }
 }
