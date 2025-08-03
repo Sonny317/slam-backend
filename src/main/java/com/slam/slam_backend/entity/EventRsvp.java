@@ -1,15 +1,13 @@
 package com.slam.slam_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*; // ✅ Setter를 위해 임포트 수정
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
+@Setter // ✅ 이 어노테이션을 추가했습니다.
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,16 +20,16 @@ public class EventRsvp {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user; // 참석한 사용자
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
-    private Event event; // 참석한 이벤트
+    private Event event;
 
     @Column(nullable = false)
-    private boolean isAttending; // 참석 여부 (true: 참석, false: 불참)
+    private boolean isAttending;
 
-    private boolean afterParty; // 애프터파티 참석 여부
+    private boolean afterParty;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
