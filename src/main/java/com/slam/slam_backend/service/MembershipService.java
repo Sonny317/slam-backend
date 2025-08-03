@@ -78,4 +78,15 @@ public class MembershipService {
 
         userMembershipRepository.save(newMembership);
     }
+
+    // ✅ 추가: 멤버십 신청을 거부하는 메소드
+    @Transactional
+    public void rejectApplication(Long applicationId) {
+        MembershipApplication application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 신청서를 찾을 수 없습니다: " + applicationId));
+
+        // 신청서의 상태를 'REJECTED'로 변경
+        application.setStatus("REJECTED");
+        applicationRepository.save(application);
+    }
 }
