@@ -106,11 +106,19 @@ public class EventService {
         return eventRepository.save(event);
     }
 
+
+
+    // ✅ deleteEvent 메소드를 수정합니다.
     @Transactional
     public void deleteEvent(Long eventId) {
         if (!eventRepository.existsById(eventId)) {
             throw new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId);
         }
+
+        // 1. 이 이벤트에 연결된 모든 RSVP(티켓) 기록을 먼저 삭제합니다.
+        eventRsvpRepository.deleteAllByEventId(eventId);
+
+        // 2. 이제 이벤트를 안전하게 삭제할 수 있습니다.
         eventRepository.deleteById(eventId);
     }
 }
