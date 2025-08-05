@@ -11,4 +11,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     
     // 게시글별 댓글 조회 (최신순)
     List<Comment> findByPostIdOrderByCreatedAtDesc(Long postId);
+    
+    // 작성자별 댓글 조회 (최신순)
+    List<Comment> findByAuthorOrderByCreatedAtDesc(String author);
 } 
