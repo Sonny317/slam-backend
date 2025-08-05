@@ -3,6 +3,8 @@ package com.slam.slam_backend.controller;
 import com.slam.slam_backend.dto.*;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.repository.UserRepository;
+import com.slam.slam_backend.repository.PostRepository;
+import com.slam.slam_backend.repository.CommentRepository;
 import com.slam.slam_backend.security.JwtTokenProvider;
 import com.slam.slam_backend.service.UserService;
 import lombok.Getter;
@@ -18,8 +20,11 @@ import com.slam.slam_backend.dto.PasswordResetRequest;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -27,6 +32,8 @@ public class UserController {
 
     private final UserService userService;
     private final UserRepository userRepository;
+    private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Value("${file.upload-dir}")
@@ -151,5 +158,86 @@ public class UserController {
         }
     }
 
+    // 사용자별 게시글 조회
+    @GetMapping("/api/users/me/posts")
+    public ResponseEntity<?> getMyPosts(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("인증되지 않은 사용자입니다.");
+        }
+        String userEmail = authentication.getName();
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 사용자 이름과 이메일 모두로 게시글 검색
+        List<PostDTO> postsByEmail = postRepository.findByAuthorOrderByCreatedAtDesc(userEmail)
+                .stream()
+                .map(PostDTO::new)
+                .collect(Collectors.toList());
+
+        List<PostDTO> postsByName = postRepository.findByAuthorOrderByCreatedAtDesc(user.getName())
+                .stream()
+                .map(PostDTO::new)
+                .collect(Collectors.toList());
+
+        // 두 결과를 합치고 중복 제거
+        List<PostDTO> allPosts = new ArrayList<>();
+        allPosts.addAll(postsByEmail);
+        allPosts.addAll(postsByName);
+        
+        // ID 기준으로 중복 제거
+        List<PostDTO> uniquePosts = allPosts.stream()
+                .collect(Collectors.toMap(
+                    PostDTO::getId,
+                    post -> post,
+                    (existing, replacement) -> existing
+                ))
+                .values()
+                .stream()
+                .sorted((p1, p2) -> p2.getCreatedAt().compareTo(p1.getCreatedAt()))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(uniquePosts);
+    }
+
+    // 사용자별 댓글 조회
+    @GetMapping("/api/users/me/comments")
+    public ResponseEntity<?> getMyComments(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("인증되지 않은 사용자입니다.");
+        }
+        String userEmail = authentication.getName();
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 사용자 이름과 이메일 모두로 댓글 검색
+        List<CommentDTO> commentsByEmail = commentRepository.findByAuthorOrderByCreatedAtDesc(userEmail)
+                .stream()
+                .map(CommentDTO::new)
+                .collect(Collectors.toList());
+
+        List<CommentDTO> commentsByName = commentRepository.findByAuthorOrderByCreatedAtDesc(user.getName())
+                .stream()
+                .map(CommentDTO::new)
+                .collect(Collectors.toList());
+
+        // 두 결과를 합치고 중복 제거
+        List<CommentDTO> allComments = new ArrayList<>();
+        allComments.addAll(commentsByEmail);
+        allComments.addAll(commentsByName);
+        
+        // ID 기준으로 중복 제거
+        List<CommentDTO> uniqueComments = allComments.stream()
+                .collect(Collectors.toMap(
+                    CommentDTO::getId,
+                    comment -> comment,
+                    (existing, replacement) -> existing
+                ))
+                .values()
+                .stream()
+                .sorted((c1, c2) -> c2.getCreatedAt().compareTo(c1.getCreatedAt()))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(uniqueComments);
+    }
 
 }

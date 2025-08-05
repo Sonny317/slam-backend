@@ -27,4 +27,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     // 좋아요 증가를 위한 네이티브 쿼리
     @Query("UPDATE Post p SET p.likes = p.likes + 1 WHERE p.id = :postId")
     void incrementLikes(@Param("postId") Long postId);
+    
+    // 작성자별 게시글 조회
+    List<Post> findByAuthorOrderByCreatedAtDesc(String author);
 } 
