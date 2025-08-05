@@ -36,20 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/auth/**", "/images/**", "/api/events").permitAll()
-                        .requestMatchers("/api/events/*").permitAll()
-                        .requestMatchers("/api/admin/events").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/membership-applications").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/applications/approve").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/applications/reject").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/users").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/users/branch").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/users/memberships").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/reset-memberships").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/test").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/debug-users").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**", "/api/memberships/**", "/api/events/**/rsvp").authenticated()
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class);
 
