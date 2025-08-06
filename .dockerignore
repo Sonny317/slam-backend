@@ -1,0 +1,34 @@
+# Git 관련 파일
+.git
+.gitignore
+
+# IDE 관련 파일
+.idea
+*.iml
+.vscode
+
+# OS 관련 파일
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build artifacts (이미 Dockerfile에서 복사하므로)
+build/
+.gradle/
+
+# Documentation
+README.md
+*.md
+
+# Test files
+src/test/
+
+# Local configuration
+application-local.properties
+application-dev.properties 
