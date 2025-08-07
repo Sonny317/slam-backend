@@ -74,17 +74,31 @@ public class EventController {
     // ✅ 추가: 이벤트 참석(RSVP) 등록 API
     @PostMapping("/rsvp")
     public ResponseEntity<?> submitRsvp(@RequestParam Long eventId, @RequestBody RsvpRequest rsvpRequest, Authentication authentication) {
+        System.out.println("=== submitRsvp API Debug ===");
+        System.out.println("Event ID: " + eventId);
+        System.out.println("Authentication: " + (authentication != null ? authentication.getName() : "null"));
+        System.out.println("RSVP Request - isAttending: " + rsvpRequest.isAttending() + ", afterParty: " + rsvpRequest.isAfterParty());
+        System.out.println("RSVP Request toString: " + rsvpRequest.toString());
+        
         if (authentication == null) {
             return ResponseEntity.status(401).body("로그인이 필요합니다.");
         }
 
         try {
             String userEmail = authentication.getName();
-            eventService.processRsvp(eventId, userEmail, rsvpRequest);
+            System.out.println("User Email: " + userEmail);
+            
+            EventRsvp savedRsvp = eventService.processRsvp(eventId, userEmail, rsvpRequest);
+            
+            System.out.println("Saved RSVP - ID: " + savedRsvp.getId() + 
+                             ", Attending: " + savedRsvp.isAttending() + 
+                             ", AfterParty: " + savedRsvp.isAfterParty());
 
             // 친구가 요청한 응답 형식
             return ResponseEntity.ok(Map.of("success", true, "message", "RSVP updated"));
         } catch (Exception e) {
+            System.out.println("Error in submitRsvp: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
         }
     }
@@ -96,10 +110,23 @@ public class EventController {
             return ResponseEntity.status(401).body("로그인이 필요합니다.");
         }
 
-        String userEmail = authentication.getName();
-        Optional<EventRsvp> rsvp = eventService.findMyRsvp(eventId, userEmail);
+        try {
+            String userEmail = authentication.getName();
+            Optional<EventRsvp> rsvp = eventService.findMyRsvp(eventId, userEmail);
 
-        // RSVP 정보가 있으면 그 정보를, 없으면 빈 객체를 반환
-        return ResponseEntity.ok(rsvp.orElse(null));
+            if (rsvp.isPresent()) {
+                EventRsvp rsvpData = rsvp.get();
+                Map<String, Object> response = Map.of(
+                    "attending", rsvpData.isAttending(),
+                    "afterParty", rsvpData.isAfterParty(),
+                    "createdAt", rsvpData.getCreatedAt()
+                );
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.ok(Map.of("attending", false, "afterParty", false));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 }
