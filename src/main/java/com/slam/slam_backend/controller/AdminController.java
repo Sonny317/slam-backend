@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -225,6 +226,28 @@ public class AdminController {
             return ResponseEntity.ok(result.toString());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    // ✅ 이벤트별 참석자 목록 조회 API
+    @GetMapping("/events/attendees")
+    public ResponseEntity<?> getEventAttendees(@RequestParam Long eventId) {
+        try {
+            List<Map<String, Object>> attendees = eventService.getEventAttendees(eventId);
+            return ResponseEntity.ok(attendees);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to get attendees: " + e.getMessage());
+        }
+    }
+
+    // ✅ 이벤트별 참석 통계 조회 API
+    @GetMapping("/events/attendance-stats")
+    public ResponseEntity<?> getEventAttendanceStats(@RequestParam Long eventId) {
+        try {
+            Map<String, Object> stats = eventService.getEventAttendanceStats(eventId);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to get attendance stats: " + e.getMessage());
         }
     }
 
