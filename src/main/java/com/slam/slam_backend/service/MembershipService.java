@@ -77,6 +77,10 @@ public class MembershipService {
                 .build();
 
         userMembershipRepository.save(newMembership);
+
+        // 3. ✅ 사용자 엔티티의 membership 필드도 동기화 (단일 표기용)
+        user.setMembership(application.getSelectedBranch());
+        userRepository.save(user);
     }
 
     // ✅ 추가: 멤버십 신청을 거부하는 메소드

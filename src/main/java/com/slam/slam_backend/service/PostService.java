@@ -3,15 +3,18 @@ package com.slam.slam_backend.service;
 import com.slam.slam_backend.dto.PostDTO;
 import com.slam.slam_backend.dto.CommentDTO;
 import com.slam.slam_backend.entity.Post;
+import com.slam.slam_backend.entity.PostLike;
+import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.Comment;
 import com.slam.slam_backend.repository.PostRepository;
 import com.slam.slam_backend.repository.CommentRepository;
+import com.slam.slam_backend.repository.PostLikeRepository;
+import com.slam.slam_backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +25,12 @@ public class PostService {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private PostLikeRepository postLikeRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     // 모든 게시글 조회
     public List<PostDTO> getAllPosts() {
@@ -82,14 +91,31 @@ public class PostService {
         return new PostDTO(savedPost);
     }
 
-    // 좋아요 증가
+    // 좋아요 토글 (한 유저당 한 게시물에 1회, 이미 누르면 취소)
     @Transactional
-    public void incrementLikes(Long postId) {
+    public boolean toggleLike(Long postId, String userEmail) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
-        
-        post.setLikes(post.getLikes() + 1);
-        postRepository.save(post);
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return postLikeRepository.findByUser_IdAndPost_Id(user.getId(), postId)
+                .map(existing -> {
+                    // 이미 좋아요 → 취소
+                    postLikeRepository.delete(existing);
+                    long likesCount = postLikeRepository.countByPost_Id(postId);
+                    post.setLikes((int) likesCount);
+                    postRepository.save(post);
+                    return false; // now unliked
+                })
+                .orElseGet(() -> {
+                    // 아직 안눌렀음 → 좋아요 추가
+                    postLikeRepository.save(new PostLike(user, post));
+                    long likesCount = postLikeRepository.countByPost_Id(postId);
+                    post.setLikes((int) likesCount);
+                    postRepository.save(post);
+                    return true; // now liked
+                });
     }
 
     // 댓글 추가

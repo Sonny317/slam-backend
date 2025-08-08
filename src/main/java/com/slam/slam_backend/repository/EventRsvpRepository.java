@@ -20,4 +20,7 @@ public interface EventRsvpRepository extends JpaRepository<EventRsvp, Long> {
     
     // ✅ 추가: 특정 이벤트의 애프터파티 참석자만 조회
     List<EventRsvp> findByEvent_IdAndAfterPartyTrue(Long eventId);
+
+    // ✅ 추가: 체크인 완료(Attended)한 사용자들 조회
+    List<EventRsvp> findByEvent_IdAndAttendedTrue(Long eventId);
 }

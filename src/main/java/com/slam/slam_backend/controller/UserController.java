@@ -7,9 +7,7 @@ import com.slam.slam_backend.repository.PostRepository;
 import com.slam.slam_backend.repository.CommentRepository;
 import com.slam.slam_backend.security.JwtTokenProvider;
 import com.slam.slam_backend.service.UserService;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -126,6 +124,13 @@ public class UserController {
         }
     }
 
+    // ✅ 이메일 중복 확인 API
+    @GetMapping("/api/auth/check-email")
+    public ResponseEntity<?> checkEmailDuplicate(@RequestParam("email") String email) {
+        boolean exists = userRepository.findByEmail(email).isPresent();
+        return ResponseEntity.ok(Map.of("available", !exists));
+    }
+
     @GetMapping("/api/users/me")
     public ResponseEntity<?> getMyProfile(Authentication authentication) {
         if (authentication == null) {
@@ -136,6 +141,23 @@ public class UserController {
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
 
         return ResponseEntity.ok(MyPageResponse.fromEntity(user));
+    }
+
+    // ✅ 마이페이지: 비밀번호 변경 API
+    @PostMapping("/api/users/change-password")
+    public ResponseEntity<?> changeMyPassword(Authentication authentication, @RequestBody ChangePasswordRequest request) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            String userEmail = authentication.getName();
+            userService.changePasswordForAuthenticatedUser(userEmail, request.getCurrentPassword(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to change password"));
+        }
     }
 
     @PostMapping("/auth/forgot-password")
@@ -197,6 +219,116 @@ public class UserController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(uniquePosts);
+    }
+
+    // ✅ 특정 사용자 프로필 조회 (이름, 사진, 작성글 목록 등)
+    @GetMapping("/api/users/{userId}")
+    public ResponseEntity<?> getUserProfile(@PathVariable Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 작성글 목록
+        List<PostDTO> postsByEmail = postRepository.findByAuthorOrderByCreatedAtDesc(user.getEmail())
+                .stream()
+                .map(PostDTO::new)
+                .collect(Collectors.toList());
+        List<PostDTO> postsByName = postRepository.findByAuthorOrderByCreatedAtDesc(user.getName())
+                .stream()
+                .map(PostDTO::new)
+                .collect(Collectors.toList());
+        List<PostDTO> allPosts = new java.util.ArrayList<>();
+        allPosts.addAll(postsByEmail);
+        allPosts.addAll(postsByName);
+        List<PostDTO> uniquePosts = allPosts.stream()
+                .collect(Collectors.toMap(
+                        PostDTO::getId,
+                        post -> post,
+                        (existing, replacement) -> existing
+                ))
+                .values()
+                .stream()
+                .sorted((p1, p2) -> p2.getCreatedAt().compareTo(p1.getCreatedAt()))
+                .collect(Collectors.toList());
+
+        // 댓글 목록
+        List<CommentDTO> commentsByEmail = commentRepository.findByAuthorOrderByCreatedAtDesc(user.getEmail())
+                .stream()
+                .map(CommentDTO::new)
+                .collect(Collectors.toList());
+        List<CommentDTO> commentsByName = commentRepository.findByAuthorOrderByCreatedAtDesc(user.getName())
+                .stream()
+                .map(CommentDTO::new)
+                .collect(Collectors.toList());
+        List<CommentDTO> allComments = new java.util.ArrayList<>();
+        allComments.addAll(commentsByEmail);
+        allComments.addAll(commentsByName);
+        List<CommentDTO> uniqueComments = allComments.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        CommentDTO::getId,
+                        c -> c,
+                        (existing, replacement) -> existing
+                ))
+                .values()
+                .stream()
+                .sorted((c1, c2) -> c2.getCreatedAt().compareTo(c1.getCreatedAt()))
+                .collect(Collectors.toList());
+
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("userId", user.getId());
+        payload.put("name", user.getName());
+        payload.put("email", user.getEmail());
+        payload.put("profileImage", user.getProfileImage()); // may be null
+        payload.put("bio", user.getBio()); // may be null
+        payload.put("posts", uniquePosts);
+        payload.put("comments", uniqueComments);
+        return ResponseEntity.ok(payload);
+    }
+
+    // ✅ author(이메일 또는 이름)로 사용자 기본 정보 조회
+    @GetMapping("/api/users/resolve")
+    public ResponseEntity<?> resolveUserByAuthor(@RequestParam("author") String author) {
+        // 이메일 우선, 없으면 이름으로 조회
+        User user = userRepository.findByEmail(author)
+                .or(() -> userRepository.findByName(author))
+                .orElse(null);
+        if (user == null) {
+            return ResponseEntity.ok(Map.of("found", false));
+        }
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("found", true);
+        details.put("userId", user.getId());
+        details.put("name", user.getName());
+        details.put("email", user.getEmail());
+        details.put("profileImage", user.getProfileImage()); // may be null
+        return ResponseEntity.ok(details);
+    }
+
+    // ✅ 여러 작성자(author 문자열 배열)를 한 번에 사용자 정보로 매핑
+    @PostMapping("/api/users/resolve-batch")
+    public ResponseEntity<?> resolveUsersByAuthors(@RequestBody Map<String, List<String>> body) {
+        List<String> authors = body.getOrDefault("authors", List.of());
+        Map<String, Map<String, Object>> result = new java.util.HashMap<>();
+        for (String author : authors) {
+            if (author == null || author.isEmpty()) {
+                result.put(author, Map.of("found", false));
+                continue;
+            }
+            User user = userRepository.findByEmail(author)
+                    .or(() -> userRepository.findByName(author))
+                    .orElse(null);
+            if (user == null) {
+                result.put(author, Map.of("found", false));
+            } else {
+                java.util.Map<String, Object> details = new java.util.HashMap<>();
+                details.put("found", true);
+                details.put("userId", user.getId());
+                details.put("name", user.getName());
+                details.put("email", user.getEmail());
+                details.put("profileImage", user.getProfileImage()); // may be null
+                result.put(author, details);
+            }
+        }
+        return ResponseEntity.ok(result);
     }
 
     // 사용자별 댓글 조회

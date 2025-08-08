@@ -10,7 +10,6 @@ import com.slam.slam_backend.repository.EventRepository;
 import com.slam.slam_backend.repository.EventRsvpRepository;
 import com.slam.slam_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,29 +56,11 @@ public class EventService {
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + userEmail));
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId));
-        
-        // 디버그 로그 추가
-        System.out.println("=== processRsvp Debug ===");
-        System.out.println("Event ID: " + eventId);
-        System.out.println("User Email: " + userEmail);
-        System.out.println("User Name: " + user.getName());
-        System.out.println("Request - Attending: " + rsvpRequest.isAttending() + ", AfterParty: " + rsvpRequest.isAfterParty());
-        
         EventRsvp rsvp = eventRsvpRepository.findByUser_IdAndEvent_Id(user.getId(), eventId)
                 .orElseGet(() -> EventRsvp.builder().user(user).event(event).build());
-        
-        System.out.println("Existing RSVP found: " + (rsvp.getId() != null));
-        
         rsvp.setAttending(rsvpRequest.isAttending());
         rsvp.setAfterParty(rsvpRequest.isAfterParty());
-        
-        EventRsvp savedRsvp = eventRsvpRepository.save(rsvp);
-        
-        System.out.println("Saved RSVP - ID: " + savedRsvp.getId() + 
-                         ", Attending: " + savedRsvp.isAttending() + 
-                         ", AfterParty: " + savedRsvp.isAfterParty());
-        
-        return savedRsvp;
+        return eventRsvpRepository.save(rsvp);
     }
 
     @Transactional(readOnly = true)
@@ -150,18 +131,6 @@ public class EventService {
         
         List<EventRsvp> rsvps = eventRsvpRepository.findByEvent_IdAndIsAttendingTrue(eventId);
         
-        // 디버그 로그 추가
-        System.out.println("=== getEventAttendees Debug ===");
-        System.out.println("Event ID: " + eventId);
-        System.out.println("Event Title: " + event.getTitle());
-        System.out.println("Total RSVPs found: " + rsvps.size());
-        
-        for (EventRsvp rsvp : rsvps) {
-            System.out.println("RSVP - User: " + rsvp.getUser().getName() + 
-                             ", Attending: " + rsvp.isAttending() + 
-                             ", AfterParty: " + rsvp.isAfterParty());
-        }
-        
         return rsvps.stream().map(rsvp -> {
             Map<String, Object> attendee = new HashMap<>();
             attendee.put("id", rsvp.getUser().getId());
@@ -184,20 +153,6 @@ public class EventService {
         List<EventRsvp> attendingRsvps = eventRsvpRepository.findByEvent_IdAndIsAttendingTrue(eventId);
         List<EventRsvp> afterPartyRsvps = eventRsvpRepository.findByEvent_IdAndAfterPartyTrue(eventId);
         
-        // 디버그 로그 추가
-        System.out.println("=== getEventAttendanceStats Debug ===");
-        System.out.println("Event ID: " + eventId);
-        System.out.println("Event Title: " + event.getTitle());
-        System.out.println("All RSVPs: " + allRsvps.size());
-        System.out.println("Attending RSVPs: " + attendingRsvps.size());
-        System.out.println("AfterParty RSVPs: " + afterPartyRsvps.size());
-        
-        for (EventRsvp rsvp : allRsvps) {
-            System.out.println("All RSVP - User: " + rsvp.getUser().getName() + 
-                             ", Attending: " + rsvp.isAttending() + 
-                             ", AfterParty: " + rsvp.isAfterParty());
-        }
-        
         Map<String, Object> stats = new HashMap<>();
         stats.put("eventId", eventId);
         stats.put("eventTitle", event.getTitle());
@@ -210,5 +165,30 @@ public class EventService {
             (double) attendingRsvps.size() / event.getCapacity() * 100 : 0);
         
         return stats;
+    }
+
+    // ✅ QR 체크인 처리: 해당 사용자의 RSVP가 있으면 attended=true로 기록
+    @Transactional
+    public void markAttendance(Long eventId, Long userId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+
+        EventRsvp rsvp = eventRsvpRepository.findByUser_IdAndEvent_Id(userId, eventId)
+                .orElseGet(() -> {
+                    // RSVP가 없으면 기본 attending=true로 생성 후 체크인 처리
+                    EventRsvp newRsvp = EventRsvp.builder()
+                            .user(user)
+                            .event(event)
+                            .build();
+                    newRsvp.setAttending(true);
+                    newRsvp.setAfterParty(false);
+                    newRsvp.setAttended(false);
+                    return eventRsvpRepository.save(newRsvp);
+                });
+
+        rsvp.setAttended(true);
+        eventRsvpRepository.save(rsvp);
     }
 }

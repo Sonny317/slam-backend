@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
+    Optional<User> findByName(String name);
     
     // ✅ 멤버십 필드에 특정 지부가 포함된 사용자들 조회
     List<User> findByMembershipContaining(String branchName);

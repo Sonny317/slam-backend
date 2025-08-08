@@ -31,6 +31,9 @@ public class EventRsvp {
 
     private boolean afterParty;
 
+    @Column(nullable = false)
+    private boolean attended; // QR 체크인 여부
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

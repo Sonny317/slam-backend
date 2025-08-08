@@ -6,6 +6,7 @@ import com.slam.slam_backend.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -59,11 +60,14 @@ public class PostController {
         return ResponseEntity.ok(createdPost);
     }
 
-    // 좋아요 증가
+    // 좋아요 토글 (이미 있으면 취소)
     @PostMapping("/{postId}/like")
-    public ResponseEntity<String> incrementLikes(@PathVariable Long postId) {
-        postService.incrementLikes(postId);
-        return ResponseEntity.ok("Likes incremented successfully");
+    public ResponseEntity<?> toggleLike(@PathVariable Long postId, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+        boolean liked = postService.toggleLike(postId, authentication.getName());
+        return ResponseEntity.ok(java.util.Map.of("liked", liked));
     }
 
     // 댓글 추가

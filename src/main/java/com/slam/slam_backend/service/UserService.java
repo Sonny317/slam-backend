@@ -37,33 +37,36 @@ public class UserService {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
+    
+    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private String frontendBaseUrl;
 
     @Transactional
     public void sendVerificationCode(String email) {
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new IllegalArgumentException("이미 가입된 이메일입니다.");
+            throw new IllegalArgumentException("Email already registered");
         }
         String code = generateRandomCode();
-        VerificationCode verificationCode = verificationCodeRepository.findByEmail(email)
-                .orElse(new VerificationCode(email, code));
+        verificationCodeRepository.findByEmail(email)
+                .ifPresent(verificationCodeRepository::delete);
         verificationCodeRepository.save(new VerificationCode(email, code));
-        String subject = "[SLAM] 회원가입 인증 코드입니다.";
-        String text = "회원가입을 완료하려면 아래 인증 코드를 입력해주세요.\n\n" + "인증 코드: " + code;
+        String subject = "[SLAM] Your verification code";
+        String text = "To complete your registration, please enter the verification code below:\n\n" + "Verification code: " + code;
         emailService.sendEmail(email, subject, text);
     }
 
     @Transactional
     public User registerUser(RegisterRequest request) {
         VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("인증 코드가 발급되지 않았거나 만료되었습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Verification code not issued or expired"));
 
         if (storedCode.getExpiryDate().isBefore(LocalDateTime.now())) {
             verificationCodeRepository.delete(storedCode);
-            throw new IllegalArgumentException("인증 코드가 만료되었습니다.");
+            throw new IllegalArgumentException("Verification code expired");
         }
 
         if (!storedCode.getCode().equals(request.getCode())) {
-            throw new IllegalArgumentException("인증 코드가 올바르지 않습니다.");
+            throw new IllegalArgumentException("Invalid verification code");
         }
 
         // --- ✅ 비밀번호 규칙 검증 로직 추가 ---
@@ -158,11 +161,11 @@ public class UserService {
         PasswordResetToken myToken = new PasswordResetToken(user, token);
         passwordResetTokenRepository.save(myToken);
 
-        // 프론트엔드의 비밀번호 재설정 페이지 주소
-        String resetUrl = "http://localhost:3000/reset-password?token=" + token;
+        // 프론트엔드의 비밀번호 재설정 페이지 주소 (환경 변수 기반)
+        String resetUrl = frontendBaseUrl + "/reset-password?token=" + token;
 
-        String subject = "[SLAM] 비밀번호 재설정 요청";
-        String text = "비밀번호를 재설정하려면 아래 링크를 클릭하세요:\n\n" + resetUrl;
+        String subject = "[SLAM] Password reset request";
+        String text = "Click the link below to reset your password:\n\n" + resetUrl;
 
         emailService.sendEmail(user.getEmail(), subject, text);
     }
@@ -171,7 +174,7 @@ public class UserService {
     @Transactional
     public void changePassword(String token, String newPassword) {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 토큰입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid Token"));
 
         if (resetToken.isExpired()) {
             throw new IllegalArgumentException("만료된 토큰입니다.");
@@ -183,5 +186,20 @@ public class UserService {
 
         // 사용 완료된 토큰은 삭제
         passwordResetTokenRepository.delete(resetToken);
+    }
+
+    // ✅ 마이페이지: 인증된 사용자의 비밀번호 변경
+    @Transactional
+    public void changePasswordForAuthenticatedUser(String email, String currentPassword, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+
+        validatePassword(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }

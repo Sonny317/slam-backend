@@ -14,8 +14,10 @@ import com.slam.slam_backend.service.EventService;
 import com.slam.slam_backend.service.MembershipService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,6 +34,9 @@ public class AdminController {
     private final UserRepository userRepository;
     private final UserMembershipRepository userMembershipRepository;
     private final EventRepository eventRepository;
+
+    @Value("${file.upload-dir}")
+    private String uploadDir;
 
     // ✅ 이벤트 관리 API들
     @GetMapping("/events")
@@ -56,6 +61,49 @@ public class AdminController {
         }
     }
 
+    // ✅ 멀티파트 업로드로 이벤트 생성 (이미지 파일 업로드 지원)
+    @PostMapping(value = "/events", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> createEventMultipart(
+            @RequestParam String branch,
+            @RequestParam String title,
+            @RequestParam(required = false) String theme,
+            @RequestParam String eventDateTime,
+            @RequestParam String location,
+            @RequestParam(required = false) String description,
+            @RequestParam int capacity,
+            @RequestParam int price,
+            @RequestPart(name = "image", required = false) MultipartFile image
+    ) {
+        try {
+            Event event = new Event();
+            event.setBranch(branch);
+            event.setTitle(title);
+            event.setTheme(theme);
+            event.setEventDateTime(java.time.LocalDateTime.parse(eventDateTime));
+            event.setLocation(location);
+            event.setDescription(description);
+            event.setCapacity(capacity);
+            event.setPrice(price);
+            event.setCurrentAttendees(0);
+
+            if (image != null && !image.isEmpty()) {
+                String original = image.getOriginalFilename();
+                String ext = (original != null && original.contains(".")) ? original.substring(original.lastIndexOf('.')) : "";
+                String filename = java.util.UUID.randomUUID() + ext;
+                java.io.File dir = new java.io.File(uploadDir);
+                if (!dir.exists()) dir.mkdirs();
+                java.io.File dest = new java.io.File(dir, filename);
+                image.transferTo(dest);
+                event.setImageUrl("/images/" + filename);
+            }
+
+            Event saved = eventRepository.save(event);
+            return ResponseEntity.ok(EventDTO.fromEntity(saved));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PutMapping("/events")
     public ResponseEntity<EventDTO> updateEvent(@RequestParam Long eventId, @RequestBody EventDTO eventDTO) {
         try {
@@ -74,6 +122,51 @@ public class AdminController {
             return ResponseEntity.ok(EventDTO.fromEntity(savedEvent));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // ✅ 멀티파트 업로드로 이벤트 수정 (이미지 파일 교체 가능)
+    @PutMapping(value = "/events", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateEventMultipart(
+            @RequestParam Long eventId,
+            @RequestParam String branch,
+            @RequestParam String title,
+            @RequestParam(required = false) String theme,
+            @RequestParam String eventDateTime,
+            @RequestParam String location,
+            @RequestParam(required = false) String description,
+            @RequestParam int capacity,
+            @RequestParam int price,
+            @RequestPart(name = "image", required = false) MultipartFile image
+    ) {
+        try {
+            Event existingEvent = eventRepository.findById(eventId)
+                    .orElseThrow(() -> new RuntimeException("Event not found"));
+
+            existingEvent.setBranch(branch);
+            existingEvent.setTitle(title);
+            existingEvent.setTheme(theme);
+            existingEvent.setEventDateTime(java.time.LocalDateTime.parse(eventDateTime));
+            existingEvent.setLocation(location);
+            existingEvent.setDescription(description);
+            existingEvent.setCapacity(capacity);
+            existingEvent.setPrice(price);
+
+            if (image != null && !image.isEmpty()) {
+                String original = image.getOriginalFilename();
+                String ext = (original != null && original.contains(".")) ? original.substring(original.lastIndexOf('.')) : "";
+                String filename = java.util.UUID.randomUUID() + ext;
+                java.io.File dir = new java.io.File(uploadDir);
+                if (!dir.exists()) dir.mkdirs();
+                java.io.File dest = new java.io.File(dir, filename);
+                image.transferTo(dest);
+                existingEvent.setImageUrl("/images/" + filename);
+            }
+
+            Event saved = eventRepository.save(existingEvent);
+            return ResponseEntity.ok(EventDTO.fromEntity(saved));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
@@ -144,16 +237,39 @@ public class AdminController {
 
     // ✅ 모든 사용자 목록 조회 API
     @GetMapping("/users")
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<User>> getAllUsers(@RequestParam(name = "sort", required = false, defaultValue = "name") String sort) {
         List<User> users = userRepository.findAll();
+        if ("name".equalsIgnoreCase(sort)) {
+            users.sort((a, b) -> {
+                String an = a.getName() == null ? "" : a.getName();
+                String bn = b.getName() == null ? "" : b.getName();
+                return an.compareToIgnoreCase(bn);
+            });
+        } else if ("createdAt".equalsIgnoreCase(sort)) {
+            // createdAt 필드가 User에 없으므로, id 순(근사치)으로 정렬
+            users.sort((a, b) -> Long.compare(a.getId(), b.getId()));
+        }
         return ResponseEntity.ok(users);
     }
 
-    // ✅ 특정 지부의 멤버 목록 조회 API
+    // ✅ 특정 지부의 멤버 목록 조회 API (정렬 지원)
     @GetMapping("/users/branch")
-    public ResponseEntity<List<User>> getUsersByBranch(@RequestParam String branchName) {
+    public ResponseEntity<List<User>> getUsersByBranch(@RequestParam String branchName,
+                                                       @RequestParam(name = "sort", required = false, defaultValue = "name") String sort) {
         // 정확한 멤버십 매칭으로 변경
         List<User> users = userRepository.findByExactMembership(branchName);
+
+        if ("name".equalsIgnoreCase(sort)) {
+            users.sort((a, b) -> {
+                String an = a.getName() == null ? "" : a.getName();
+                String bn = b.getName() == null ? "" : b.getName();
+                return an.compareToIgnoreCase(bn);
+            });
+        } else if ("createdAt".equalsIgnoreCase(sort)) {
+            // createdAt 필드가 없으므로 id를 근사치로 사용
+            users.sort((a, b) -> Long.compare(a.getId(), b.getId()));
+        }
+
         return ResponseEntity.ok(users);
     }
 
@@ -251,5 +367,15 @@ public class AdminController {
         }
     }
 
+    // ✅ QR 체크인: 참석 완료(attended) 기록
+    @PostMapping("/check-in")
+    public ResponseEntity<?> checkIn(@RequestParam Long eventId, @RequestParam Long userId) {
+        try {
+            eventService.markAttendance(eventId, userId);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
 
 }
