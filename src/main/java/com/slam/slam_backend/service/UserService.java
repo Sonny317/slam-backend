@@ -35,7 +35,7 @@ public class UserService {
     private final VerificationCodeRepository verificationCodeRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository; // ✅ Repository 주입
 
-    @Value("${file.upload-dir}")
+    @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
     
     @Value("${app.frontend.base-url:http://localhost:3000}")
