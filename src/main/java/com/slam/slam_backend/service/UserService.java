@@ -62,7 +62,10 @@ public class UserService {
             }
         }
         String code = generateRandomCode();
-        verificationCodeRepository.upsertCode(email, code, LocalDateTime.now().plusMinutes(10));
+        // DB 벤더 독립적으로 동작하도록 기존 레코드를 삭제 후 새 레코드를 저장합니다.
+        verificationCodeRepository.findByEmail(email)
+                .ifPresent(verificationCodeRepository::delete);
+        verificationCodeRepository.save(new VerificationCode(email, code));
         String subject = "[SLAM] Your verification code";
         String text = "To complete your registration, please enter the verification code below:\n\n" + "Verification code: " + code;
         emailService.sendEmail(email, subject, text);

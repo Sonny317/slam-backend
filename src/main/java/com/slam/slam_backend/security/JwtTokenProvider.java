@@ -24,7 +24,18 @@ public class JwtTokenProvider {
 
     @PostConstruct
     protected void init() {
-        key = Keys.hmacShaKeyFor(secret.getBytes());
+        try {
+            if (secret == null || secret.length() < 32) {
+                // Fallback: generate a runtime key to allow the app to start
+                // NOTE: Tokens will be invalidated on restart. Set JWT_SECRET_KEY (>=32 chars) in production.
+                key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+            } else {
+                key = Keys.hmacShaKeyFor(secret.getBytes());
+            }
+        } catch (Exception e) {
+            // As a last resort, generate a key to prevent startup failure
+            key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        }
     }
 
     // ✅ 토큰을 생성하는 메소드 추가
