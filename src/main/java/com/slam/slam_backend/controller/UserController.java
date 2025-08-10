@@ -41,7 +41,7 @@ public class UserController {
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
             userService.registerUser(request);
-            return ResponseEntity.ok("회원가입 완료");
+            return ResponseEntity.ok("Registration completed");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -107,7 +107,7 @@ public class UserController {
             User updatedUser = userService.updateProfileImage(userEmail, file);
             return ResponseEntity.ok(MyPageResponse.fromEntity(updatedUser));
         } catch (IOException e) {
-            return ResponseEntity.status(500).body("프로필 이미지 업데이트 중 오류가 발생했습니다.");
+            return ResponseEntity.status(500).body("An error occurred while updating the profile image.");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -118,9 +118,9 @@ public class UserController {
         try {
             String email = payload.get("email");
             userService.sendVerificationCode(email);
-            return ResponseEntity.ok("인증 코드가 이메일로 전송되었습니다.");
+            return ResponseEntity.ok("Verification code has been sent to your email.");
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("이메일 전송에 실패했습니다: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Failed to send email: " + e.getMessage());
         }
     }
 
