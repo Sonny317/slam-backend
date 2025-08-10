@@ -24,6 +24,8 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -41,18 +43,32 @@ public class UserService {
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
 
+    // ✅ 이메일 인증코드 재전송 쿨다운(60초) 관리용 in-memory 저장소
+    private final Map<String, LocalDateTime> lastCodeSentAt = new ConcurrentHashMap<>();
+
     @Transactional
     public void sendVerificationCode(String email) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Email already registered");
         }
+
+        // ✅ 60초 재전송 쿨다운 체크 (서버에서 제한)
+        LocalDateTime lastSent = lastCodeSentAt.get(email);
+        if (lastSent != null) {
+            LocalDateTime availableAt = lastSent.plusSeconds(60);
+            if (LocalDateTime.now().isBefore(availableAt)) {
+                long secondsLeft = java.time.Duration.between(LocalDateTime.now(), availableAt).getSeconds();
+                throw new IllegalArgumentException("Please wait " + secondsLeft + " seconds before requesting a new code.");
+            }
+        }
         String code = generateRandomCode();
-        verificationCodeRepository.findByEmail(email)
-                .ifPresent(verificationCodeRepository::delete);
-        verificationCodeRepository.save(new VerificationCode(email, code));
+        verificationCodeRepository.upsertCode(email, code, LocalDateTime.now().plusMinutes(10));
         String subject = "[SLAM] Your verification code";
         String text = "To complete your registration, please enter the verification code below:\n\n" + "Verification code: " + code;
         emailService.sendEmail(email, subject, text);
+
+        // ✅ 마지막 전송 시간 갱신
+        lastCodeSentAt.put(email, LocalDateTime.now());
     }
 
     @Transactional
@@ -90,10 +106,10 @@ public class UserService {
 
     // ✅ 비밀번호 규칙을 검사하는 private 메소드
     private void validatePassword(String password) {
-        // 6자리 이상, 특수문자 포함
-        String passwordRegex = "^(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{6,}$";
+        // 8자리 이상, 영문자/숫자/특수문자 각각 1개 이상 포함
+        String passwordRegex = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$";
         if (!Pattern.matches(passwordRegex, password)) {
-            throw new IllegalArgumentException("비밀번호는 특수문자를 포함하여 6자리 이상이어야 합니다.");
+            throw new IllegalArgumentException("비밀번호는 8자리 이상이며 영문자, 숫자, 특수문자를 모두 포함해야 합니다.");
         }
     }
 
@@ -104,6 +120,21 @@ public class UserService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
         return user;
+    }
+
+    // ✅ 인증코드 유효성 검증 (회원가입 전 Verify 버튼에서 사용)
+    @Transactional
+    public boolean verifyVerificationCode(String email, String code) {
+        VerificationCode storedCode = verificationCodeRepository.findByEmail(email).orElse(null);
+        if (storedCode == null) {
+            return false;
+        }
+        if (storedCode.getExpiryDate().isBefore(LocalDateTime.now())) {
+            // 만료된 코드는 정리
+            verificationCodeRepository.delete(storedCode);
+            return false;
+        }
+        return storedCode.getCode().equals(code);
     }
 
     private String generateRandomCode() {
