@@ -124,6 +124,18 @@ public class UserController {
         }
     }
 
+    // ✅ 인증코드 검증 API (프론트의 Verify 버튼에서 호출)
+    @PostMapping("/auth/verify-code")
+    public ResponseEntity<?> verifyCode(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        String code = payload.get("code");
+        if (email == null || code == null) {
+            return ResponseEntity.badRequest().body(Map.of("valid", false, "error", "Missing email or code"));
+        }
+        boolean valid = userService.verifyVerificationCode(email, code);
+        return ResponseEntity.ok(Map.of("valid", valid));
+    }
+
     // ✅ 이메일 중복 확인 API
     @GetMapping("/api/auth/check-email")
     public ResponseEntity<?> checkEmailDuplicate(@RequestParam("email") String email) {
