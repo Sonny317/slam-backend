@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -175,6 +176,59 @@ public class AdminController {
         try {
             eventRepository.deleteById(eventId);
             return ResponseEntity.ok("Event deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ✅ 이벤트 보관처리(과거로 이동) API
+    @PostMapping("/events/archive")
+    public ResponseEntity<?> archiveEvent(@RequestParam Long eventId) {
+        try {
+            Event event = eventRepository.findById(eventId)
+                    .orElseThrow(() -> new RuntimeException("Event not found"));
+            event.setArchived(true);
+            eventRepository.save(event);
+            return ResponseEntity.ok("Event archived successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ✅ 사용자 역할 변경 API (ADMIN 전용, PRESIDENT는 STAFF로만 변경 가능)
+    @PostMapping("/users/role")
+    public ResponseEntity<?> updateUserRole(@RequestParam Long userId,
+                                            @RequestParam String role,
+                                            Authentication authentication) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+
+            String requesterEmail = authentication.getName();
+            User requester = userRepository.findByEmail(requesterEmail)
+                    .orElseThrow(() -> new RuntimeException("Requester not found"));
+
+            String requesterRole = requester.getRole();
+
+            // ADMIN은 모든 역할로 설정 가능, PRESIDENT는 STAFF로만 변경 가능
+            if (!"ADMIN".equalsIgnoreCase(requesterRole)) {
+                if ("PRESIDENT".equalsIgnoreCase(requesterRole)) {
+                    if (!"STAFF".equalsIgnoreCase(role)) {
+                        return ResponseEntity.status(403).body("PRESIDENT can only assign STAFF role");
+                    }
+                } else {
+                    return ResponseEntity.status(403).body("Forbidden");
+                }
+            }
+
+            User target = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            target.setRole(role.toUpperCase());
+            userRepository.save(target);
+
+            return ResponseEntity.ok("Role updated to " + target.getRole());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

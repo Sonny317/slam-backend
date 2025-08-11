@@ -42,4 +42,7 @@ public class Event {
     private int currentAttendees; // 현재 참석 인원
 
     private int price; // 가격
+
+    // 이벤트가 과거 처리(보관)되었는지 여부
+    private boolean archived;
 }

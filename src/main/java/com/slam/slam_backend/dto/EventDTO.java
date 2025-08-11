@@ -20,6 +20,7 @@ public class EventDTO {
     private int capacity;
     private int currentAttendees;
     private int price;
+    private boolean archived;
     // TODO: 나중에 리뷰 목록도 여기에 추가할 수 있습니다.
 
     // Event 엔티티를 EventDTO로 변환하는 정적 메소드
@@ -36,6 +37,7 @@ public class EventDTO {
                 .capacity(event.getCapacity())
                 .currentAttendees(event.getCurrentAttendees())
                 .price(event.getPrice())
+                .archived(event.isArchived())
                 .build();
     }
 
@@ -53,6 +55,7 @@ public class EventDTO {
         event.setCapacity(this.capacity);
         event.setCurrentAttendees(this.currentAttendees);
         event.setPrice(this.price);
+        event.setArchived(this.archived);
         return event;
     }
 }
