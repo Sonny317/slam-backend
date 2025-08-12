@@ -7,6 +7,7 @@ import com.slam.slam_backend.entity.MembershipApplication;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.UserMembership;
 import com.slam.slam_backend.repository.EventRepository;
+import com.slam.slam_backend.repository.EventRsvpRepository;
 import com.slam.slam_backend.repository.MembershipApplicationRepository;
 import com.slam.slam_backend.repository.UserMembershipRepository;
 import com.slam.slam_backend.repository.UserRepository;
@@ -35,6 +36,7 @@ public class AdminController {
     private final UserRepository userRepository;
     private final UserMembershipRepository userMembershipRepository;
     private final EventRepository eventRepository;
+    private final EventRsvpRepository eventRsvpRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -308,23 +310,67 @@ public class AdminController {
 
     // ✅ 특정 지부의 멤버 목록 조회 API (정렬 지원)
     @GetMapping("/users/branch")
-    public ResponseEntity<List<User>> getUsersByBranch(@RequestParam String branchName,
+    public ResponseEntity<List<Map<String, Object>>> getUsersByBranch(@RequestParam String branchName,
                                                        @RequestParam(name = "sort", required = false, defaultValue = "name") String sort) {
-        // 정확한 멤버십 매칭으로 변경
-        List<User> users = userRepository.findByExactMembership(branchName);
+        try {
+            // 지부별 ACTIVE 멤버십 기반으로 사용자 수집 (대소문자 무시)
+            List<UserMembership> activeMemberships = userMembershipRepository.findByBranchNameIgnoreCaseAndStatusIgnoreCase(branchName, "ACTIVE");
+            System.out.println("[Users/Branch] branch=" + branchName + ", activeMemberships=" + activeMemberships.size());
 
-        if ("name".equalsIgnoreCase(sort)) {
-            users.sort((a, b) -> {
-                String an = a.getName() == null ? "" : a.getName();
-                String bn = b.getName() == null ? "" : b.getName();
-                return an.compareToIgnoreCase(bn);
-            });
-        } else if ("createdAt".equalsIgnoreCase(sort)) {
-            // createdAt 필드가 없으므로 id를 근사치로 사용
-            users.sort((a, b) -> Long.compare(a.getId(), b.getId()));
+            // ID 기준 dedupe를 위해 LinkedHashMap 사용
+            java.util.Map<Long, User> idToUser = new java.util.LinkedHashMap<>();
+            for (UserMembership um : activeMemberships) {
+                if (um != null && um.getUser() != null && um.getUser().getId() != null) {
+                    idToUser.put(um.getUser().getId(), um.getUser());
+                }
+            }
+
+            // 단일 문자열 membership 필드 기반 폴백(과거 데이터 호환)
+            List<User> usersFromStringField = userRepository.findByMembershipContaining(branchName);
+            System.out.println("[Users/Branch] usersFromStringField=" + usersFromStringField.size());
+            for (User u : usersFromStringField) {
+                if (u != null && u.getId() != null) {
+                    idToUser.put(u.getId(), u);
+                }
+            }
+
+            List<User> users = new java.util.ArrayList<>(idToUser.values());
+
+            if ("name".equalsIgnoreCase(sort)) {
+                users.sort((a, b) -> {
+                    String an = a.getName() == null ? "" : a.getName();
+                    String bn = b.getName() == null ? "" : b.getName();
+                    return an.compareToIgnoreCase(bn);
+                });
+            } else if ("createdAt".equalsIgnoreCase(sort)) {
+                // createdAt 필드가 없으므로 id를 근사치로 사용
+                users.sort((a, b) -> Long.compare(a.getId(), b.getId()));
+            }
+
+            // 사용자별 참여 횟수(joinedCount) 포함 응답 구성
+            List<Map<String, Object>> withStats = users.stream().map(u -> {
+                long joinedCount = eventRsvpRepository.countByUser_IdAndAttendedTrue(u.getId());
+                String membership = u.getMembership();
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                m.put("id", u.getId());
+                m.put("name", u.getName());
+                m.put("email", u.getEmail());
+                m.put("membership", membership); // null 허용
+                m.put("branch", branchName);
+                m.put("joinedCount", joinedCount);
+                return m;
+            }).collect(java.util.stream.Collectors.toList());
+
+            System.out.println("[Users/Branch] response size=" + withStats.size());
+            return ResponseEntity.ok(withStats);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(500).body(java.util.List.of(java.util.Map.of(
+                "error", ex.getClass().getSimpleName(),
+                "message", ex.getMessage() == null ? "null" : ex.getMessage(),
+                "branch", branchName
+            )));
         }
-
-        return ResponseEntity.ok(users);
     }
 
     // ✅ 모든 사용자의 멤버십 초기화 API (테스트용)
