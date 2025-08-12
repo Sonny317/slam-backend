@@ -23,4 +23,7 @@ public interface EventRsvpRepository extends JpaRepository<EventRsvp, Long> {
 
     // ✅ 추가: 체크인 완료(Attended)한 사용자들 조회
     List<EventRsvp> findByEvent_IdAndAttendedTrue(Long eventId);
+
+    // ✅ 추가: 특정 사용자가 체크인 완료한 이벤트 수(참여 횟수) 카운트
+    long countByUser_IdAndAttendedTrue(Long userId);
 }
