@@ -3,6 +3,7 @@ package com.slam.slam_backend.controller;
 import com.slam.slam_backend.dto.ApplicationDTO;
 import com.slam.slam_backend.dto.EventDTO;
 import com.slam.slam_backend.entity.Event;
+import com.slam.slam_backend.entity.ActionTask;
 import com.slam.slam_backend.entity.MembershipApplication;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.UserMembership;
@@ -11,6 +12,11 @@ import com.slam.slam_backend.repository.EventRsvpRepository;
 import com.slam.slam_backend.repository.MembershipApplicationRepository;
 import com.slam.slam_backend.repository.UserMembershipRepository;
 import com.slam.slam_backend.repository.UserRepository;
+import com.slam.slam_backend.repository.ActionTaskRepository;
+import com.slam.slam_backend.repository.GameRepository;
+import com.slam.slam_backend.repository.EventGameRepository;
+import com.slam.slam_backend.entity.Game;
+import com.slam.slam_backend.entity.EventGame;
 import com.slam.slam_backend.service.EventService;
 import com.slam.slam_backend.service.MembershipService;
 import lombok.RequiredArgsConstructor;
@@ -37,9 +43,86 @@ public class AdminController {
     private final UserMembershipRepository userMembershipRepository;
     private final EventRepository eventRepository;
     private final EventRsvpRepository eventRsvpRepository;
+  private final ActionTaskRepository actionTaskRepository;
+    private final GameRepository gameRepository;
+    private final EventGameRepository eventGameRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
+
+  // ✅ 영수증 업로드 (최대 1MB 정도로 프론트에서 제한, 서버는 파일 저장만 수행)
+  @PostMapping(value = "/receipts/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<?> uploadReceipt(@RequestPart("file") MultipartFile file) {
+      try {
+          if (file == null || file.isEmpty()) {
+              return ResponseEntity.badRequest().body("Empty file");
+          }
+          String original = file.getOriginalFilename();
+          String ext = (original != null && original.contains(".")) ? original.substring(original.lastIndexOf('.')) : "";
+          String filename = java.util.UUID.randomUUID() + ext;
+          java.io.File dir = new java.io.File(uploadDir);
+          if (!dir.exists()) dir.mkdirs();
+          java.io.File dest = new java.io.File(dir, filename);
+          file.transferTo(dest);
+          return ResponseEntity.ok(java.util.Map.of("url", "/images/" + filename));
+      } catch (Exception e) {
+          return ResponseEntity.badRequest().body("Failed to upload receipt: " + e.getMessage());
+      }
+  }
+
+  // === Action Plan APIs ===
+  @GetMapping("/actions")
+  public ResponseEntity<?> listActions(@RequestParam(required = false) String branch,
+                                       @RequestParam(required = false, defaultValue = "false") boolean archived) {
+      java.util.List<ActionTask> all = actionTaskRepository.findAll();
+      java.util.stream.Stream<ActionTask> s = all.stream();
+      if (branch != null && !branch.isEmpty()) {
+          s = s.filter(t -> branch.equalsIgnoreCase(t.getBranch()));
+      }
+      if (!archived) {
+          s = s.filter(t -> !t.isArchived());
+      }
+      return ResponseEntity.ok(s.toList());
+  }
+
+  @PostMapping("/actions")
+  public ResponseEntity<?> createAction(@RequestBody ActionTask task) {
+      if (task.getStatus() == null || task.getStatus().isEmpty()) task.setStatus("todo");
+      if (task.getBranch() == null || task.getBranch().isEmpty()) task.setBranch("NCCU");
+      return ResponseEntity.ok(actionTaskRepository.save(task));
+  }
+
+  @PutMapping("/actions/{id}")
+  public ResponseEntity<?> updateAction(@PathVariable Long id, @RequestBody ActionTask payload) {
+      ActionTask t = actionTaskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
+      t.setTitle(payload.getTitle());
+      t.setTeam(payload.getTeam());
+      t.setAgenda(payload.getAgenda());
+      t.setDeadline(payload.getDeadline());
+      t.setStatus(payload.getStatus());
+      if (payload.getBranch() != null) t.setBranch(payload.getBranch());
+      if (payload.getEventTitle() != null) t.setEventTitle(payload.getEventTitle());
+      t.setArchived(payload.isArchived());
+      t.setUpdatedAt(java.time.LocalDateTime.now());
+      return ResponseEntity.ok(actionTaskRepository.save(t));
+  }
+
+  @DeleteMapping("/actions/{id}")
+  public ResponseEntity<?> deleteAction(@PathVariable Long id) {
+      actionTaskRepository.deleteById(id);
+      return ResponseEntity.ok().build();
+  }
+
+  @PostMapping("/actions/{id}/ack-toggle")
+  public ResponseEntity<?> toggleAck(@PathVariable Long id, Authentication authentication) {
+      if (authentication == null) return ResponseEntity.status(401).body("Unauthorized");
+      String email = authentication.getName();
+      User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+      ActionTask t = actionTaskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
+      boolean removed = t.getAcknowledgedBy().removeIf(u -> u.getId().equals(user.getId()));
+      if (!removed) t.getAcknowledgedBy().add(user);
+      return ResponseEntity.ok(actionTaskRepository.save(t));
+  }
 
     // ✅ 이벤트 관리 API들
     @GetMapping("/events")
@@ -476,6 +559,77 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         }
+    }
+
+    // === Game Management APIs ===
+
+    // 모든 게임 목록 조회 (활성화된 것만)
+    @GetMapping("/games")
+    public ResponseEntity<List<Game>> getAllGames() {
+        List<Game> games = gameRepository.findByActiveTrue();
+        return ResponseEntity.ok(games);
+    }
+
+    // 게임 생성
+    @PostMapping("/games")
+    public ResponseEntity<Game> createGame(@RequestBody Game game) {
+        if (game.getGameId() == null || game.getGameId().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        Game saved = gameRepository.save(game);
+        return ResponseEntity.ok(saved);
+    }
+
+    // 게임 수정
+    @PutMapping("/games/{gameId}")
+    public ResponseEntity<Game> updateGame(@PathVariable String gameId, @RequestBody Game game) {
+        Game existing = gameRepository.findByGameId(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        existing.setName(game.getName());
+        existing.setDescription(game.getDescription());
+        existing.setCategory(game.getCategory());
+        existing.setActive(game.isActive());
+        Game saved = gameRepository.save(existing);
+        return ResponseEntity.ok(saved);
+    }
+
+    // 게임 비활성화/삭제
+    @DeleteMapping("/games/{gameId}")
+    public ResponseEntity<?> deleteGame(@PathVariable String gameId) {
+        Game game = gameRepository.findByGameId(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        game.setActive(false);
+        gameRepository.save(game);
+        return ResponseEntity.ok("Game deactivated");
+    }
+
+    // 특정 이벤트에 게임 할당
+    @PostMapping("/events/{eventId}/games")
+    public ResponseEntity<?> assignGamesToEvent(@PathVariable Long eventId, @RequestBody List<String> gameIds) {
+        // 기존 게임 할당 삭제
+        eventGameRepository.deleteByEventId(eventId);
+        
+        // 새로운 게임 할당
+        for (String gameId : gameIds) {
+            EventGame eventGame = new EventGame(eventId, gameId);
+            eventGameRepository.save(eventGame);
+        }
+        return ResponseEntity.ok("Games assigned to event");
+    }
+
+    // 특정 이벤트의 게임 목록 조회
+    @GetMapping("/events/{eventId}/games")
+    public ResponseEntity<List<Map<String, Object>>> getEventGames(@PathVariable Long eventId) {
+        List<EventGame> eventGames = eventGameRepository.findByEventId(eventId);
+        List<Map<String, Object>> result = eventGames.stream().map(eg -> {
+            Game game = gameRepository.findByGameId(eg.getGameId()).orElse(null);
+            Map<String, Object> gameInfo = new java.util.HashMap<>();
+            gameInfo.put("gameId", eg.getGameId());
+            gameInfo.put("name", game != null ? game.getName() : "Unknown Game");
+            gameInfo.put("category", game != null ? game.getCategory() : "Unknown");
+            return gameInfo;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
 }
