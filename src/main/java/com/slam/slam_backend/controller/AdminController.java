@@ -17,6 +17,7 @@ import com.slam.slam_backend.repository.GameRepository;
 import com.slam.slam_backend.repository.EventGameRepository;
 import com.slam.slam_backend.entity.Game;
 import com.slam.slam_backend.entity.EventGame;
+import com.slam.slam_backend.entity.FinanceTransaction;
 import com.slam.slam_backend.service.EventService;
 import com.slam.slam_backend.service.MembershipService;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,7 @@ public class AdminController {
   private final ActionTaskRepository actionTaskRepository;
     private final GameRepository gameRepository;
     private final EventGameRepository eventGameRepository;
+    private final com.slam.slam_backend.repository.FinanceTransactionRepository financeTransactionRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -630,6 +632,67 @@ public class AdminController {
             return gameInfo;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);
+    }
+
+    // === Finance (Accounting) APIs ===
+    @GetMapping("/finance")
+    public ResponseEntity<?> listFinance(@RequestParam String branch) {
+        try {
+            java.util.List<FinanceTransaction> list = financeTransactionRepository.findByBranchNameIgnoreCaseOrderByDateDescIdDesc(branch);
+            return ResponseEntity.ok(list);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to list finance: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/finance")
+    public ResponseEntity<?> createFinance(@RequestBody FinanceTransaction payload, Authentication authentication) {
+        try {
+            if (payload.getBranchName() == null || payload.getBranchName().isEmpty()) {
+                return ResponseEntity.badRequest().body("branchName is required");
+            }
+            if (payload.getType() == null || payload.getDate() == null || payload.getItem() == null || payload.getAmount() == null) {
+                return ResponseEntity.badRequest().body("type/date/item/amount are required");
+            }
+            if (authentication != null && (payload.getSubmittedBy() == null || payload.getSubmittedBy().isEmpty())) {
+                String email = authentication.getName();
+                com.slam.slam_backend.entity.User u = userRepository.findByEmail(email).orElse(null);
+                if (u != null) payload.setSubmittedBy(u.getName() != null ? u.getName() : u.getEmail());
+                else payload.setSubmittedBy(email);
+            }
+            FinanceTransaction saved = financeTransactionRepository.save(payload);
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to create finance: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/finance/{id}")
+    public ResponseEntity<?> updateFinance(@PathVariable Long id, @RequestBody FinanceTransaction payload) {
+        try {
+            FinanceTransaction t = financeTransactionRepository.findById(id).orElseThrow(() -> new RuntimeException("Finance not found"));
+            if (payload.getType() != null) t.setType(payload.getType());
+            if (payload.getDate() != null) t.setDate(payload.getDate());
+            if (payload.getItem() != null) t.setItem(payload.getItem());
+            if (payload.getAmount() != null) t.setAmount(payload.getAmount());
+            if (payload.getEventTitle() != null) t.setEventTitle(payload.getEventTitle());
+            if (payload.getReceiptUrl() != null) t.setReceiptUrl(payload.getReceiptUrl());
+            if (payload.getSubmittedBy() != null) t.setSubmittedBy(payload.getSubmittedBy());
+            if (payload.getStatus() != null) t.setStatus(payload.getStatus());
+            return ResponseEntity.ok(financeTransactionRepository.save(t));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to update finance: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/finance/{id}")
+    public ResponseEntity<?> deleteFinance(@PathVariable Long id) {
+        try {
+            financeTransactionRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to delete finance: " + e.getMessage());
+        }
     }
 
 }

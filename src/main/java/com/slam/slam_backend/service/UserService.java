@@ -47,9 +47,15 @@ public class UserService {
             throw new IllegalArgumentException("Email already registered");
         }
         String code = generateRandomCode();
+        // 기존 레코드가 있으면 업데이트, 없으면 새로 생성하여 저장 (유니크 제약 위반 방지)
         verificationCodeRepository.findByEmail(email)
-                .ifPresent(verificationCodeRepository::delete);
-        verificationCodeRepository.save(new VerificationCode(email, code));
+                .ifPresentOrElse(existing -> {
+                    existing.setCode(code);
+                    existing.setExpiryDate(LocalDateTime.now().plusMinutes(10));
+                    verificationCodeRepository.save(existing);
+                }, () -> {
+                    verificationCodeRepository.save(new VerificationCode(email, code));
+                });
         String subject = "[SLAM] Your verification code";
         String text = "To complete your registration, please enter the verification code below:\n\n" + "Verification code: " + code;
         emailService.sendEmail(email, subject, text);
@@ -202,4 +208,18 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
+
+	    // ✅ 인증 코드 유효성 검증 메소드
+	    public boolean verifyVerificationCode(String email, String code) {
+	        return verificationCodeRepository.findByEmail(email)
+	                .map(stored -> {
+	                    if (stored.getExpiryDate().isBefore(LocalDateTime.now())) {
+	                        // 만료된 코드는 정리
+	                        verificationCodeRepository.delete(stored);
+	                        return false;
+	                    }
+	                    return stored.getCode().equals(code);
+	                })
+	                .orElse(false);
+	    }
 }
