@@ -8,6 +8,7 @@ import com.slam.slam_backend.repository.UserRepository;
 import com.slam.slam_backend.entity.UserMembership; // ✅ 임포트 추가
 import com.slam.slam_backend.repository.UserMembershipRepository; // ✅ 임포트 추가
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.slam.slam_backend.dto.ApplicationDTO; // ✅ DTO 임포트
 import lombok.Setter;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -24,6 +25,9 @@ public class MembershipService {
     private final MembershipApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final UserMembershipRepository userMembershipRepository;
+    
+    @Autowired
+    private NotificationService notificationService;
 
     @Transactional
     public MembershipApplication applyForMembership(String userEmail, MembershipRequest request) {
@@ -81,6 +85,9 @@ public class MembershipService {
         // 3. ✅ 사용자 엔티티의 membership 필드도 동기화 (단일 표기용)
         user.setMembership(application.getSelectedBranch());
         userRepository.save(user);
+        
+        // 4. 승인 알림 생성
+        notificationService.createMembershipNotification(user.getEmail(), application.getSelectedBranch(), true);
     }
 
     // ✅ 추가: 멤버십 신청을 거부하는 메소드
@@ -92,5 +99,9 @@ public class MembershipService {
         // 신청서의 상태를 'REJECTED'로 변경
         application.setStatus("REJECTED");
         applicationRepository.save(application);
+        
+        // 거절 알림 생성
+        User user = application.getUser();
+        notificationService.createMembershipNotification(user.getEmail(), application.getSelectedBranch(), false);
     }
 }
