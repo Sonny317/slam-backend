@@ -128,14 +128,45 @@ public class AdminController {
 
     // ✅ 이벤트 관리 API들
     @GetMapping("/events")
-    public ResponseEntity<List<EventDTO>> getAllEvents() {
-        List<Event> events = eventRepository.findAll();
-        List<EventDTO> eventDTOs = events.stream()
-                .map(EventDTO::fromEntity)
-                .collect(Collectors.toList());
-        System.out.println("AdminPage API called - Total events: " + eventDTOs.size());
-        System.out.println("Events: " + eventDTOs.stream().map(e -> e.getTitle() + " (" + e.getBranch() + ")").collect(Collectors.toList()));
-        return ResponseEntity.ok(eventDTOs);
+    public ResponseEntity<?> getAllEvents() {
+        try {
+            System.out.println("AdminPage API called - Fetching all events");
+            
+            List<Event> events = eventRepository.findAll();
+            System.out.println("Found " + events.size() + " events in database");
+            
+            if (events.isEmpty()) {
+                System.out.println("No events found, returning empty list");
+                return ResponseEntity.ok(new java.util.ArrayList<>());
+            }
+            
+            List<EventDTO> eventDTOs = events.stream()
+                    .filter(event -> event != null) // null 체크 추가
+                    .map(event -> {
+                        try {
+                            return EventDTO.fromEntity(event);
+                        } catch (Exception e) {
+                            System.err.println("Error converting event " + event.getId() + " to DTO: " + e.getMessage());
+                            e.printStackTrace();
+                            return null;
+                        }
+                    })
+                    .filter(dto -> dto != null) // null DTO 제거
+                    .collect(Collectors.toList());
+                    
+            System.out.println("AdminPage API called - Total events: " + eventDTOs.size());
+            System.out.println("Events: " + eventDTOs.stream().map(e -> e.getTitle() + " (" + e.getBranch() + ")").collect(Collectors.toList()));
+            
+            return ResponseEntity.ok(eventDTOs);
+        } catch (Exception e) {
+            System.err.println("Error in getAllEvents: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Failed to fetch events",
+                "message", e.getMessage() != null ? e.getMessage() : "Unknown error",
+                "type", e.getClass().getSimpleName()
+            ));
+        }
     }
 
     @PostMapping("/events")

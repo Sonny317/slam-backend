@@ -37,12 +37,16 @@ public class Event {
 
     private String imageUrl; // 대표 이미지 URL
 
+    @Column(nullable = false)
     private int capacity; // 총 정원
 
+    @Column(nullable = false)
     private int currentAttendees; // 현재 참석 인원
 
+    @Column(nullable = false)
     private int price; // 가격
 
     // 이벤트가 과거 처리(보관)되었는지 여부
+    @Column(nullable = false)
     private boolean archived;
 }
