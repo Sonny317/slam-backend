@@ -84,11 +84,23 @@ public class PostController {
         return ResponseEntity.ok(comments);
     }
 
-    // 게시글 삭제
+    // 게시글 삭제 (작성자 또는 관리자만 가능)
     @DeleteMapping("/{postId}")
-    public ResponseEntity<String> deletePost(@PathVariable Long postId) {
-        postService.deletePost(postId);
-        return ResponseEntity.ok("Post deleted successfully");
+    public ResponseEntity<String> deletePost(@PathVariable Long postId, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Authentication required");
+        }
+        
+        try {
+            boolean deleted = postService.deletePost(postId, authentication.getName());
+            if (deleted) {
+                return ResponseEntity.ok("Post deleted successfully");
+            } else {
+                return ResponseEntity.status(403).body("You don't have permission to delete this post");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to delete post: " + e.getMessage());
+        }
     }
 
 
