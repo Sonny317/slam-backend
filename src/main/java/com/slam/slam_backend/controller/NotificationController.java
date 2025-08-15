@@ -19,25 +19,51 @@ public class NotificationController {
     private NotificationService notificationService;
 
     @GetMapping
-    public ResponseEntity<List<Notification>> getUserNotifications(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
-        }
+    public ResponseEntity<?> getUserNotifications(Authentication authentication) {
+        try {
+            System.out.println("Notification API called - Getting user notifications");
+            
+            if (authentication == null || !authentication.isAuthenticated()) {
+                System.out.println("No authentication found for notifications");
+                return ResponseEntity.status(401).body(Map.of("error", "Authentication required"));
+            }
 
-        String userEmail = authentication.getName();
-        List<Notification> notifications = notificationService.getNotificationsByUserId(userEmail);
-        return ResponseEntity.ok(notifications);
+            String userEmail = authentication.getName();
+            System.out.println("Fetching notifications for user: " + userEmail);
+            
+            List<Notification> notifications = notificationService.getNotificationsByUserId(userEmail);
+            System.out.println("Found " + notifications.size() + " notifications");
+            
+            return ResponseEntity.ok(notifications != null ? notifications : new java.util.ArrayList<>());
+        } catch (Exception e) {
+            System.err.println("Error in getUserNotifications: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Failed to fetch notifications",
+                "message", e.getMessage() != null ? e.getMessage() : "Unknown error",
+                "type", e.getClass().getSimpleName()
+            ));
+        }
     }
 
     @GetMapping("/unread")
-    public ResponseEntity<List<Notification>> getUnreadNotifications(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
-        }
+    public ResponseEntity<?> getUnreadNotifications(Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).body(Map.of("error", "Authentication required"));
+            }
 
-        String userEmail = authentication.getName();
-        List<Notification> notifications = notificationService.getUnreadNotificationsByUserId(userEmail);
-        return ResponseEntity.ok(notifications);
+            String userEmail = authentication.getName();
+            List<Notification> notifications = notificationService.getUnreadNotificationsByUserId(userEmail);
+            return ResponseEntity.ok(notifications != null ? notifications : new java.util.ArrayList<>());
+        } catch (Exception e) {
+            System.err.println("Error in getUnreadNotifications: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Failed to fetch unread notifications",
+                "message", e.getMessage() != null ? e.getMessage() : "Unknown error"
+            ));
+        }
     }
 
     @GetMapping("/unread/count")
