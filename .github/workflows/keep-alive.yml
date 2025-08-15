@@ -1,13 +1,21 @@
-name: Keep Free Server Awake
+name: Keep Render Server Awake
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # 매 5분마다 실행
-  workflow_dispatch:
+    # 매 14분마다 실행 (Render는 15분 후 슬립)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # 수동 실행도 가능
 
 jobs:
-  ping:
+  wake-server:
     runs-on: ubuntu-latest
     steps:
-      - name: Send ping to server
-        run: curl -s https://slam-taipei.vercel.app/ > /dev/null
+      - name: Wake Backend Server
+        run: |
+          echo "Pinging backend server..."
+          curl -f https://slam-backend.onrender.com || echo "Backend ping failed"
+          
+      - name: Wake Frontend Server (if needed)
+        run: |
+          echo "Pinging frontend server..."
+          curl -f https://slam-taipei.vercel.app || echo "Frontend ping failed"
