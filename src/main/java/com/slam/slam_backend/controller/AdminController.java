@@ -526,8 +526,29 @@ public class AdminController {
 
     // ✅ 테스트용 간단한 엔드포인트
     @GetMapping("/test")
-    public ResponseEntity<String> testEndpoint() {
-        return ResponseEntity.ok("Admin endpoint working!");
+    public ResponseEntity<Map<String, Object>> testEndpoint() {
+        try {
+            // 데이터베이스 연결 테스트
+            long userCount = userRepository.count();
+            long eventCount = eventRepository.count();
+            
+            Map<String, Object> status = new java.util.HashMap<>();
+            status.put("status", "OK");
+            status.put("timestamp", java.time.LocalDateTime.now().toString());
+            status.put("userCount", userCount);
+            status.put("eventCount", eventCount);
+            status.put("database", "Connected");
+            
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            Map<String, Object> error = new java.util.HashMap<>();
+            error.put("status", "ERROR");
+            error.put("timestamp", java.time.LocalDateTime.now().toString());
+            error.put("error", e.getMessage());
+            error.put("type", e.getClass().getSimpleName());
+            
+            return ResponseEntity.status(500).body(error);
+        }
     }
 
     // ✅ 현재 데이터베이스 상태 확인용 엔드포인트

@@ -141,12 +141,26 @@ public class PostService {
                 .collect(Collectors.toList());
     }
 
-    // 게시글 삭제
+    // 게시글 삭제 (작성자 또는 관리자만 가능)
     @Transactional
-    public void deletePost(Long postId) {
+    public boolean deletePost(Long postId, String userEmail) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
-        postRepository.delete(post);
+        
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // 권한 확인: 작성자이거나 관리자인지 확인
+        boolean isAuthorByEmail = post.getAuthor().equals(userEmail);
+        boolean isAuthorByName = post.getAuthor().equals(user.getName());
+        boolean isAdmin = "ADMIN".equals(user.getRole());
+        
+        if (isAuthorByEmail || isAuthorByName || isAdmin) {
+            postRepository.delete(post);
+            return true;
+        } else {
+            return false; // 권한 없음
+        }
     }
 
 
