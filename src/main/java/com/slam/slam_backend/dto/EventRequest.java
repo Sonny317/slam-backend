@@ -16,4 +16,41 @@ public class EventRequest {
     private String imageUrl;
     private int capacity;
     private int price;
+
+    // 명시적으로 getter 메서드들 추가 (Lombok 백업용)
+    public String getBranch() {
+        return branch;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getTheme() {
+        return theme;
+    }
+
+    public LocalDateTime getEventDateTime() {
+        return eventDateTime;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public int getPrice() {
+        return price;
+    }
 }

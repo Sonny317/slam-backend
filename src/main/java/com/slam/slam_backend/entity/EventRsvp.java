@@ -36,4 +36,29 @@ public class EventRsvp {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    // 명시적으로 setter 메서드들 추가 (Lombok 백업용)
+    public void setAttending(boolean attending) {
+        this.isAttending = attending;
+    }
+
+    public boolean isAttending() {
+        return isAttending;
+    }
+
+    public void setAfterParty(boolean afterParty) {
+        this.afterParty = afterParty;
+    }
+
+    public boolean isAfterParty() {
+        return afterParty;
+    }
+
+    public void setAttended(boolean attended) {
+        this.attended = attended;
+    }
+
+    public boolean isAttended() {
+        return attended;
+    }
 }
