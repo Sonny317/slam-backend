@@ -84,7 +84,7 @@ public class MyPageResponse {
                 .email(user.getEmail())
                 .bio(user.getBio())
                 .profileImage(user.getProfileImage())
-                .role(user.getRole())
+                .role(user.getRole().name())
                 .memberships(validMemberships)
                 .build();
     }

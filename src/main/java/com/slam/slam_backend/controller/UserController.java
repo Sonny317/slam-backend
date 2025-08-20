@@ -58,7 +58,7 @@ public class UserController {
                     .email(user.getEmail())
                     .name(user.getName())
                     .profileImage(user.getProfileImage())
-                    .role(user.getRole()) // ✅ 응답에 role 추가
+                    .role(user.getRole().name()) // ✅ enum을 String으로 변환
                     .build();
 
             return ResponseEntity.ok(responseDto);
