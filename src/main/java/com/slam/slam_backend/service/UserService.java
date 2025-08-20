@@ -1,6 +1,7 @@
 package com.slam.slam_backend.service;
 
 import com.slam.slam_backend.dto.RegisterRequest;
+import com.slam.slam_backend.dto.UserUpdateRequest;
 import com.slam.slam_backend.entity.PasswordResetToken;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.UserRole;
@@ -224,5 +225,46 @@ public class UserService {
 	                    return stored.getCode().equals(code);
 	                })
 	                .orElse(false);
+	    }
+
+	    // ✅ 사용자 기본 정보 업데이트 메소드
+	    @Transactional
+	    public User updateUserInfo(String email, UserUpdateRequest request) {
+	        User user = userRepository.findByEmail(email)
+	                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + email));
+
+	        // 이름 업데이트 (필수)
+	        user.setName(request.getName());
+
+	        // 선택적 정보 업데이트
+	        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+	            user.setPhone(request.getPhone());
+	        }
+
+	        if (request.getMajor() != null && !request.getMajor().trim().isEmpty()) {
+	            user.setMajor(request.getMajor());
+	        }
+
+	        if (request.getStudentId() != null && !request.getStudentId().trim().isEmpty()) {
+	            user.setStudentId(request.getStudentId());
+	        }
+
+	        if (request.getBio() != null) {
+	            user.setBio(request.getBio());
+	        }
+
+	        if (request.getInterests() != null) {
+	            user.setInterests(request.getInterests());
+	        }
+
+	        if (request.getSpokenLanguages() != null) {
+	            user.setSpokenLanguages(request.getSpokenLanguages());
+	        }
+
+	        if (request.getDesiredLanguages() != null) {
+	            user.setDesiredLanguages(request.getDesiredLanguages());
+	        }
+
+	        return userRepository.save(user);
 	    }
 }

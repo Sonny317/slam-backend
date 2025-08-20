@@ -62,6 +62,24 @@ public class User implements UserDetails { // ✅ UserDetails 구현
     @Column
     private String desiredLanguages;
 
+    @Column(length = 50)
+    private String studentId;
+
+    @Column(length = 20)
+    private String phone;
+
+    @Column(length = 100)
+    private String major;
+
+    @Column(length = 255)
+    private String interests;
+
+    @Column(length = 255)
+    private String spokenLanguages;
+
+    @Column(length = 255)
+    private String desiredLanguages;
+
     // ✅ 사용자가 가진 모든 멤버십 정보를 담을 '보관함'과의 연결을 추가합니다.
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference // ✅ JSON 무한 루프 방지
