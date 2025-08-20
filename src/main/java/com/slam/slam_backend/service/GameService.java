@@ -1,17 +1,28 @@
 package com.slam.slam_backend.service;
 
+import com.slam.slam_backend.dto.GameCreateRequest;
+import com.slam.slam_backend.dto.GameFeedbackCreateRequest;
 import com.slam.slam_backend.entity.Game;
+import com.slam.slam_backend.entity.GameFeedback;
 import com.slam.slam_backend.repository.GameRepository;
+import com.slam.slam_backend.repository.GameFeedbackRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class GameService implements ApplicationRunner {
 
     @Autowired
     private GameRepository gameRepository;
+    
+    @Autowired
+    private GameFeedbackRepository gameFeedbackRepository;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -46,5 +57,143 @@ public class GameService implements ApplicationRunner {
         }
 
         System.out.println("Initialized " + defaultGames.length + " default games");
+    }
+
+    // ===== 게임 관리 API =====
+    
+    public List<Game> getAllActiveGames() {
+        return gameRepository.findByActiveTrue();
+    }
+
+    public List<Game> getAllGames() {
+        return gameRepository.findAll();
+    }
+
+    public List<Game> getGamesByCategory(String category) {
+        return gameRepository.findByCategoryAndActiveTrue(category);
+    }
+
+    public Game getGameByGameId(String gameId) {
+        return gameRepository.findByGameId(gameId)
+                .orElseThrow(() -> new IllegalArgumentException("게임을 찾을 수 없습니다: " + gameId));
+    }
+
+    /**
+     * 새 게임 생성
+     */
+    @Transactional
+    public Game createGame(GameCreateRequest request) {
+        // 고유한 gameId 생성
+        String gameId = generateUniqueGameId();
+
+        Game game = new Game(
+                gameId,
+                request.getName(),
+                request.getDescription(),
+                request.getInstructions(),
+                request.getExampleVideoUrl(),
+                request.getCategory(),
+                request.getMinParticipants(),
+                request.getMaxParticipants(),
+                request.getEstimatedDuration(),
+                request.getDifficulty()
+        );
+
+        if (request.getActive() != null) {
+            game.setActive(request.getActive());
+        }
+        
+        return gameRepository.save(game);
+    }
+
+    /**
+     * 게임 정보 수정
+     */
+    @Transactional
+    public Game updateGame(String gameId, GameCreateRequest request) {
+        Game game = getGameByGameId(gameId);
+        
+        game.setName(request.getName());
+        game.setDescription(request.getDescription());
+        game.setInstructions(request.getInstructions());
+        game.setExampleVideoUrl(request.getExampleVideoUrl());
+        game.setCategory(request.getCategory());
+        game.setMinParticipants(request.getMinParticipants());
+        game.setMaxParticipants(request.getMaxParticipants());
+        game.setEstimatedDuration(request.getEstimatedDuration());
+        game.setDifficulty(request.getDifficulty());
+        
+        if (request.getActive() != null) {
+            game.setActive(request.getActive());
+        }
+        
+        return gameRepository.save(game);
+    }
+
+    /**
+     * 게임 활성화/비활성화
+     */
+    @Transactional
+    public Game toggleGameActive(String gameId) {
+        Game game = getGameByGameId(gameId);
+        game.setActive(!game.isActive());
+        return gameRepository.save(game);
+    }
+
+    /**
+     * 게임 피드백 생성
+     */
+    @Transactional
+    public GameFeedback createGameFeedback(GameFeedbackCreateRequest request, String submittedBy) {
+        // 게임 존재 여부 확인
+        getGameByGameId(request.getGameId());
+
+        GameFeedback feedback = GameFeedback.builder()
+                .eventId(request.getEventId())
+                .gameId(request.getGameId())
+                .rating(request.getRating())
+                .engagement(request.getEngagement())
+                .difficulty(request.getDifficulty())
+                .comment(request.getComment())
+                .actualParticipants(request.getActualParticipants())
+                .actualDuration(request.getActualDuration())
+                .organizerNotes(request.getOrganizerNotes())
+                .submittedBy(submittedBy)
+                .build();
+
+        return gameFeedbackRepository.save(feedback);
+    }
+
+    /**
+     * 특정 이벤트의 게임 피드백 조회
+     */
+    public List<GameFeedback> getGameFeedbacksByEvent(Long eventId) {
+        return gameFeedbackRepository.findByEventId(eventId);
+    }
+
+    /**
+     * 특정 게임의 모든 피드백 조회
+     */
+    public List<GameFeedback> getGameFeedbacksByGame(String gameId) {
+        return gameFeedbackRepository.findByGameIdOrderByCreatedAtDesc(gameId);
+    }
+
+    /**
+     * 특정 이벤트-게임 조합의 피드백 조회
+     */
+    public List<GameFeedback> getGameFeedbacksByEventAndGame(Long eventId, String gameId) {
+        return gameFeedbackRepository.findByEventIdAndGameId(eventId, gameId);
+    }
+
+    /**
+     * 고유한 게임 ID 생성 
+     */
+    private String generateUniqueGameId() {
+        String gameId;
+        do {
+            gameId = "game-" + UUID.randomUUID().toString().substring(0, 8);
+        } while (gameRepository.findByGameId(gameId).isPresent());
+        
+        return gameId;
     }
 }

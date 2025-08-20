@@ -157,8 +157,20 @@ public class StaffService {
             user.setAffiliation(request.getAffiliation());
         }
 
-        // 추가 정보들은 향후 확장을 위해 별도 엔티티나 필드로 관리할 수 있음
-        // 현재는 affiliation 필드에 팀 정보를 저장
+        // ✅ User 테이블의 새 필드들에 정보 저장
+        if (request.getStudentId() != null && !request.getStudentId().trim().isEmpty()) {
+            user.setStudentId(request.getStudentId());
+        }
+        
+        if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
+            user.setPhone(request.getPhoneNumber());
+        }
+        
+        if (request.getMajor() != null && !request.getMajor().trim().isEmpty()) {
+            user.setMajor(request.getMajor());
+        }
+
+        // 팀 정보를 affiliation 필드에 저장
         String teamInfo = String.format("%s (%s팀)", request.getUniversity(), request.getTeam());
         user.setAffiliation(teamInfo);
     }

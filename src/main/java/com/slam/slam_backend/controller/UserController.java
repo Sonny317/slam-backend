@@ -384,4 +384,16 @@ public class UserController {
         return ResponseEntity.ok(uniqueComments);
     }
 
+    // ✅ 사용자 기본 정보 업데이트
+    @PostMapping("/api/users/profile/update")
+    public ResponseEntity<?> updateUserInfo(@RequestBody UserUpdateRequest request, Authentication authentication) {
+        try {
+            String userEmail = authentication.getName();
+            User updatedUser = userService.updateUserInfo(userEmail, request);
+            return ResponseEntity.ok(MyPageResponse.fromEntity(updatedUser));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
 }
