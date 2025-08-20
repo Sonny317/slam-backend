@@ -3,6 +3,8 @@ package com.slam.slam_backend.service;
 import com.slam.slam_backend.dto.RegisterRequest;
 import com.slam.slam_backend.entity.PasswordResetToken;
 import com.slam.slam_backend.entity.User;
+import com.slam.slam_backend.entity.UserRole;
+import com.slam.slam_backend.entity.UserStatus;
 import com.slam.slam_backend.entity.VerificationCode;
 import com.slam.slam_backend.repository.PasswordResetTokenRepository;
 import com.slam.slam_backend.repository.UserRepository;
@@ -85,7 +87,8 @@ public class UserService {
                 .interests(request.getInterests())
                 .spokenLanguages(request.getSpokenLanguages())
                 .desiredLanguages(request.getDesiredLanguages())
-                .role("MEMBER")
+                .role(UserRole.MEMBER)
+                .status(UserStatus.PRE_MEMBER)
                 .build();
 
         verificationCodeRepository.delete(storedCode);

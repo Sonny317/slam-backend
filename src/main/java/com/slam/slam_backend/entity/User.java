@@ -39,8 +39,13 @@ public class User implements UserDetails { // ✅ UserDetails 구현
     @Column(length = 500)
     private String bio;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String role;
+    private UserRole role;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private UserStatus status;
 
     @Column
     private String interests;
@@ -66,7 +71,7 @@ public class User implements UserDetails { // ✅ UserDetails 구현
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
 
     @Override

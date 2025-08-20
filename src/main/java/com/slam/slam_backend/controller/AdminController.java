@@ -2,11 +2,14 @@ package com.slam.slam_backend.controller;
 
 import com.slam.slam_backend.dto.ApplicationDTO;
 import com.slam.slam_backend.dto.EventDTO;
+import com.slam.slam_backend.dto.StaffAssignmentRequest;
 import com.slam.slam_backend.entity.Event;
 import com.slam.slam_backend.entity.ActionTask;
 import com.slam.slam_backend.entity.MembershipApplication;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.UserMembership;
+import com.slam.slam_backend.entity.UserRole;
+import com.slam.slam_backend.entity.UserStatus;
 import com.slam.slam_backend.repository.EventRepository;
 import com.slam.slam_backend.repository.EventRsvpRepository;
 import com.slam.slam_backend.repository.MembershipApplicationRepository;
@@ -20,6 +23,7 @@ import com.slam.slam_backend.entity.EventGame;
 import com.slam.slam_backend.entity.FinanceTransaction;
 import com.slam.slam_backend.service.EventService;
 import com.slam.slam_backend.service.MembershipService;
+import com.slam.slam_backend.service.StaffService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
@@ -39,6 +43,7 @@ public class AdminController {
 
     private final MembershipService membershipService;
     private final EventService eventService;
+    private final StaffService staffService;
     private final MembershipApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final UserMembershipRepository userMembershipRepository;
@@ -313,7 +318,31 @@ public class AdminController {
         }
     }
 
-    // ✅ 사용자 역할 변경 API (ADMIN 전용, PRESIDENT는 STAFF로만 변경 가능)
+    // ✅ 스태프 임명 API (PRESIDENT/ADMIN 전용) - 온보딩 프로세스 시작
+    @PostMapping("/users/assign-staff")
+    public ResponseEntity<?> assignStaff(@RequestBody StaffAssignmentRequest request,
+                                        Authentication authentication) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+
+            String assignerEmail = authentication.getName();
+            staffService.initiateStaffAssignment(assignerEmail, request);
+            
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "스태프 임명 이메일이 발송되었습니다."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    // ✅ 사용자 역할 변경 API (기존 방식, 간단한 역할 변경용)
     @PostMapping("/users/role")
     public ResponseEntity<?> updateUserRole(@RequestParam Long userId,
                                             @RequestParam String role,
@@ -327,26 +356,67 @@ public class AdminController {
             User requester = userRepository.findByEmail(requesterEmail)
                     .orElseThrow(() -> new RuntimeException("Requester not found"));
 
-            String requesterRole = requester.getRole();
+            UserRole requesterRole = requester.getRole();
 
-            // ADMIN은 모든 역할로 설정 가능, PRESIDENT는 STAFF로만 변경 가능
-            if (!"ADMIN".equalsIgnoreCase(requesterRole)) {
-                if ("PRESIDENT".equalsIgnoreCase(requesterRole)) {
-                    if (!"STAFF".equalsIgnoreCase(role)) {
-                        return ResponseEntity.status(403).body("PRESIDENT can only assign STAFF role");
-                    }
-                } else {
-                    return ResponseEntity.status(403).body("Forbidden");
-                }
+            // 권한 검증
+            if (!requesterRole.canAssignStaff()) {
+                return ResponseEntity.status(403).body("권한이 없습니다.");
+            }
+
+            // 역할 문자열을 enum으로 변환
+            UserRole targetRole;
+            try {
+                targetRole = UserRole.valueOf(role.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("유효하지 않은 역할입니다: " + role);
             }
 
             User target = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            target.setRole(role.toUpperCase());
+            target.setRole(targetRole);
             userRepository.save(target);
 
-            return ResponseEntity.ok("Role updated to " + target.getRole());
+            return ResponseEntity.ok("Role updated to " + target.getRole().getDisplayName());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ✅ 사용자 상태 변경 API (멤버십 승인 등)
+    @PostMapping("/users/status")
+    public ResponseEntity<?> updateUserStatus(@RequestParam Long userId,
+                                              @RequestParam String status,
+                                              Authentication authentication) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+
+            String requesterEmail = authentication.getName();
+            User requester = userRepository.findByEmail(requesterEmail)
+                    .orElseThrow(() -> new RuntimeException("Requester not found"));
+
+            // 관리자 권한 확인
+            if (!requester.getRole().hasAdminAccess()) {
+                return ResponseEntity.status(403).body("권한이 없습니다.");
+            }
+
+            // 상태 문자열을 enum으로 변환
+            UserStatus targetStatus;
+            try {
+                targetStatus = UserStatus.valueOf(status.toUpperCase().replace(" ", "_"));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("유효하지 않은 상태입니다: " + status);
+            }
+
+            User target = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            target.setStatus(targetStatus);
+            userRepository.save(target);
+
+            return ResponseEntity.ok("Status updated to " + target.getStatus().getDisplayName());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
