@@ -57,7 +57,13 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId));
         EventRsvp rsvp = eventRsvpRepository.findByUser_IdAndEvent_Id(user.getId(), eventId)
-                .orElseGet(() -> EventRsvp.builder().user(user).event(event).build());
+                .orElseGet(() -> {
+                    EventRsvp newRsvp = new EventRsvp();
+                    newRsvp.setUser(user);
+                    newRsvp.setEvent(event);
+                    newRsvp.setAttended(false);
+                    return newRsvp;
+                });
         rsvp.setAttending(rsvpRequest.isAttending());
         rsvp.setAfterParty(rsvpRequest.isAfterParty());
         return eventRsvpRepository.save(rsvp);
@@ -72,18 +78,18 @@ public class EventService {
 
     @Transactional
     public Event createEvent(EventRequest request) {
-        Event newEvent = Event.builder()
-                .branch(request.getBranch())
-                .title(request.getTitle())
-                .theme(request.getTheme())
-                .eventDateTime(request.getEventDateTime())
-                .location(request.getLocation())
-                .description(request.getDescription())
-                .imageUrl(request.getImageUrl())
-                .capacity(request.getCapacity())
-                .price(request.getPrice())
-                .currentAttendees(0)
-                .build();
+        Event newEvent = new Event();
+        newEvent.setBranch(request.getBranch());
+        newEvent.setTitle(request.getTitle());
+        newEvent.setTheme(request.getTheme());
+        newEvent.setEventDateTime(request.getEventDateTime());
+        newEvent.setLocation(request.getLocation());
+        newEvent.setDescription(request.getDescription());
+        newEvent.setImageUrl(request.getImageUrl());
+        newEvent.setCapacity(request.getCapacity());
+        newEvent.setPrice(request.getPrice());
+        newEvent.setCurrentAttendees(0);
+        newEvent.setArchived(false);
         return eventRepository.save(newEvent);
     }
 
@@ -178,10 +184,9 @@ public class EventService {
         EventRsvp rsvp = eventRsvpRepository.findByUser_IdAndEvent_Id(userId, eventId)
                 .orElseGet(() -> {
                     // RSVP가 없으면 기본 attending=true로 생성 후 체크인 처리
-                    EventRsvp newRsvp = EventRsvp.builder()
-                            .user(user)
-                            .event(event)
-                            .build();
+                    EventRsvp newRsvp = new EventRsvp();
+                    newRsvp.setUser(user);
+                    newRsvp.setEvent(event);
                     newRsvp.setAttending(true);
                     newRsvp.setAfterParty(false);
                     newRsvp.setAttended(false);

@@ -6,7 +6,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import com.fasterxml.jackson.annotation.JsonManagedReference; // ✅ JSON 무한 루프 방지
-import java.util.ArrayList; // ✅ 임포트 추가
 
 import java.util.Collection;
 import java.util.List;
@@ -23,6 +22,15 @@ public class User implements UserDetails { // ✅ UserDetails 구현
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // 명시적으로 getId() 메서드 추가 (Lombok 백업용)
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     @Column(nullable = false, length = 50)
     private String name;
@@ -70,15 +78,6 @@ public class User implements UserDetails { // ✅ UserDetails 구현
 
     @Column(length = 100)
     private String major;
-
-    @Column(length = 255)
-    private String interests;
-
-    @Column(length = 255)
-    private String spokenLanguages;
-
-    @Column(length = 255)
-    private String desiredLanguages;
 
     // ✅ 사용자가 가진 모든 멤버십 정보를 담을 '보관함'과의 연결을 추가합니다.
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)

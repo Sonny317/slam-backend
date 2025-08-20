@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.OptionalDouble;
 
 /**
  * 게임 분석을 위한 서비스
@@ -137,9 +136,6 @@ public class GameAnalyticsService {
      * 적합한 그룹 사이즈 결정
      */
     private String determineSuitableGroupSize(List<GameFeedback> feedbacks) {
-        double avgParticipants = calculateAverage(feedbacks, GameFeedback::getActualParticipants);
-        double avgRating = calculateAverage(feedbacks, GameFeedback::getRating);
-        
         // 높은 평점을 받은 인원 범위를 분석
         List<GameFeedback> highRatedFeedbacks = feedbacks.stream()
                 .filter(f -> f.getRating() >= 4.0)
@@ -203,7 +199,6 @@ public class GameAnalyticsService {
     private Double calculateRecommendationScore(List<GameFeedback> feedbacks, Game game) {
         if (feedbacks.isEmpty()) return 0.0;
         
-        double avgRating = calculateAverage(feedbacks, GameFeedback::getRating);
         double normalizedRating = calculateNormalizedRating(feedbacks);
         double consistency = calculateConsistency(feedbacks); // 평점의 일관성
         double frequency = Math.min(10.0, feedbacks.size()) / 10.0; // 최대 10회 기준으로 정규화

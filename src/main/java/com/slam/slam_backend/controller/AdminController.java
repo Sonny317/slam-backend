@@ -24,6 +24,12 @@ import com.slam.slam_backend.entity.FinanceTransaction;
 import com.slam.slam_backend.service.EventService;
 import com.slam.slam_backend.service.MembershipService;
 import com.slam.slam_backend.service.StaffService;
+import com.slam.slam_backend.service.GameService;
+import com.slam.slam_backend.service.GameAnalyticsService;
+import com.slam.slam_backend.dto.GameCreateRequest;
+import com.slam.slam_backend.dto.GameFeedbackCreateRequest;
+import com.slam.slam_backend.dto.GameAnalyticsDTO;
+import com.slam.slam_backend.entity.GameFeedback;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
@@ -689,45 +695,38 @@ public class AdminController {
 
     // === Game Management APIs ===
 
-    // 모든 게임 목록 조회 (활성화된 것만)
-    @GetMapping("/games")
-    public ResponseEntity<List<Game>> getAllGames() {
-        List<Game> games = gameRepository.findByActiveTrue();
-        return ResponseEntity.ok(games);
-    }
+    // 게임 생성 (OLD - 주석 처리됨, 새로운 API 사용)
+    // @PostMapping("/games")
+    // public ResponseEntity<Game> createGame(@RequestBody Game game) {
+    //     if (game.getGameId() == null || game.getGameId().isEmpty()) {
+    //         return ResponseEntity.badRequest().build();
+    //     }
+    //     Game saved = gameRepository.save(game);
+    //     return ResponseEntity.ok(saved);
+    // }
 
-    // 게임 생성
-    @PostMapping("/games")
-    public ResponseEntity<Game> createGame(@RequestBody Game game) {
-        if (game.getGameId() == null || game.getGameId().isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
-        Game saved = gameRepository.save(game);
-        return ResponseEntity.ok(saved);
-    }
+    // 게임 수정 (OLD - 주석 처리됨, 새로운 API 사용)
+    // @PutMapping("/games/{gameId}")
+    // public ResponseEntity<Game> updateGame(@PathVariable String gameId, @RequestBody Game game) {
+    //     Game existing = gameRepository.findByGameId(gameId)
+    //             .orElseThrow(() -> new RuntimeException("Game not found"));
+    //     existing.setName(game.getName());
+    //     existing.setDescription(game.getDescription());
+    //     existing.setCategory(game.getCategory());
+    //     existing.setActive(game.isActive());
+    //     Game saved = gameRepository.save(existing);
+    //     return ResponseEntity.ok(saved);
+    // }
 
-    // 게임 수정
-    @PutMapping("/games/{gameId}")
-    public ResponseEntity<Game> updateGame(@PathVariable String gameId, @RequestBody Game game) {
-        Game existing = gameRepository.findByGameId(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
-        existing.setName(game.getName());
-        existing.setDescription(game.getDescription());
-        existing.setCategory(game.getCategory());
-        existing.setActive(game.isActive());
-        Game saved = gameRepository.save(existing);
-        return ResponseEntity.ok(saved);
-    }
-
-    // 게임 비활성화/삭제
-    @DeleteMapping("/games/{gameId}")
-    public ResponseEntity<?> deleteGame(@PathVariable String gameId) {
-        Game game = gameRepository.findByGameId(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
-        game.setActive(false);
-        gameRepository.save(game);
-        return ResponseEntity.ok("Game deactivated");
-    }
+    // 게임 비활성화/삭제 (OLD - 주석 처리됨, 새로운 API 사용)
+    // @DeleteMapping("/games/{gameId}")
+    // public ResponseEntity<?> deleteGame(@PathVariable String gameId) {
+    //     Game game = gameRepository.findByGameId(gameId)
+    //             .orElseThrow(() -> new RuntimeException("Game not found"));
+    //     game.setActive(false);
+    //     gameRepository.save(game);
+    //     return ResponseEntity.ok("Game deactivated");
+    // }
 
     // 특정 이벤트에 게임 할당
     @PostMapping("/events/{eventId}/games")
@@ -824,7 +823,7 @@ public class AdminController {
     /**
      * 모든 게임 조회 (관리자용)
      */
-    @GetMapping("/api/admin/games")
+    @GetMapping("/games")
     public ResponseEntity<List<Game>> getAllGames() {
         return ResponseEntity.ok(gameService.getAllGames());
     }
@@ -832,7 +831,7 @@ public class AdminController {
     /**
      * 활성 게임만 조회
      */
-    @GetMapping("/api/admin/games/active")
+    @GetMapping("/games/active")
     public ResponseEntity<List<Game>> getActiveGames() {
         return ResponseEntity.ok(gameService.getAllActiveGames());
     }
@@ -840,7 +839,7 @@ public class AdminController {
     /**
      * 새 게임 생성
      */
-    @PostMapping("/api/admin/games")
+    @PostMapping("/games")
     public ResponseEntity<?> createGame(@RequestBody GameCreateRequest request) {
         try {
             Game game = gameService.createGame(request);
@@ -853,7 +852,7 @@ public class AdminController {
     /**
      * 게임 정보 수정
      */
-    @PutMapping("/api/admin/games/{gameId}")
+    @PutMapping("/games/{gameId}")
     public ResponseEntity<?> updateGame(@PathVariable String gameId, @RequestBody GameCreateRequest request) {
         try {
             Game game = gameService.updateGame(gameId, request);
@@ -866,7 +865,7 @@ public class AdminController {
     /**
      * 게임 활성화/비활성화 토글
      */
-    @PatchMapping("/api/admin/games/{gameId}/toggle")
+    @PatchMapping("/games/{gameId}/toggle")
     public ResponseEntity<?> toggleGameActive(@PathVariable String gameId) {
         try {
             Game game = gameService.toggleGameActive(gameId);
@@ -879,7 +878,7 @@ public class AdminController {
     /**
      * 특정 게임의 상세 분석 조회
      */
-    @GetMapping("/api/admin/games/{gameId}/analytics")
+    @GetMapping("/games/{gameId}/analytics")
     public ResponseEntity<?> getGameAnalytics(@PathVariable String gameId) {
         try {
             GameAnalyticsDTO analytics = gameAnalyticsService.analyzeGame(gameId);
@@ -892,7 +891,7 @@ public class AdminController {
     /**
      * 모든 게임의 분석 요약 조회
      */
-    @GetMapping("/api/admin/games/analytics")
+    @GetMapping("/games/analytics")
     public ResponseEntity<?> getAllGameAnalytics() {
         try {
             List<GameAnalyticsDTO> analytics = gameAnalyticsService.analyzeAllGames();
@@ -905,7 +904,7 @@ public class AdminController {
     /**
      * 게임 피드백 생성 (관리자용)
      */
-    @PostMapping("/api/admin/games/feedback")
+    @PostMapping("/games/feedback")
     public ResponseEntity<?> createGameFeedback(@RequestBody GameFeedbackCreateRequest request, Authentication authentication) {
         try {
             String submittedBy = "admin-" + authentication.getName();
@@ -919,7 +918,7 @@ public class AdminController {
     /**
      * 특정 이벤트의 게임 피드백 조회
      */
-    @GetMapping("/api/admin/events/{eventId}/game-feedbacks")
+    @GetMapping("/events/{eventId}/game-feedbacks")
     public ResponseEntity<?> getEventGameFeedbacks(@PathVariable Long eventId) {
         try {
             List<GameFeedback> feedbacks = gameService.getGameFeedbacksByEvent(eventId);
@@ -932,7 +931,7 @@ public class AdminController {
     /**
      * 특정 게임의 모든 피드백 조회
      */
-    @GetMapping("/api/admin/games/{gameId}/feedbacks")
+    @GetMapping("/games/{gameId}/feedbacks")
     public ResponseEntity<?> getGameFeedbacks(@PathVariable String gameId) {
         try {
             List<GameFeedback> feedbacks = gameService.getGameFeedbacksByGame(gameId);
