@@ -44,6 +44,8 @@ public class AdminController {
     private final MembershipService membershipService;
     private final EventService eventService;
     private final StaffService staffService;
+    private final GameService gameService;
+    private final GameAnalyticsService gameAnalyticsService;
     private final MembershipApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final UserMembershipRepository userMembershipRepository;
@@ -814,6 +816,129 @@ public class AdminController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to delete finance: " + e.getMessage());
+        }
+    }
+
+    // ============== 게임 관리 API ==============
+
+    /**
+     * 모든 게임 조회 (관리자용)
+     */
+    @GetMapping("/api/admin/games")
+    public ResponseEntity<List<Game>> getAllGames() {
+        return ResponseEntity.ok(gameService.getAllGames());
+    }
+
+    /**
+     * 활성 게임만 조회
+     */
+    @GetMapping("/api/admin/games/active")
+    public ResponseEntity<List<Game>> getActiveGames() {
+        return ResponseEntity.ok(gameService.getAllActiveGames());
+    }
+
+    /**
+     * 새 게임 생성
+     */
+    @PostMapping("/api/admin/games")
+    public ResponseEntity<?> createGame(@RequestBody GameCreateRequest request) {
+        try {
+            Game game = gameService.createGame(request);
+            return ResponseEntity.ok(game);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to create game: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 게임 정보 수정
+     */
+    @PutMapping("/api/admin/games/{gameId}")
+    public ResponseEntity<?> updateGame(@PathVariable String gameId, @RequestBody GameCreateRequest request) {
+        try {
+            Game game = gameService.updateGame(gameId, request);
+            return ResponseEntity.ok(game);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to update game: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 게임 활성화/비활성화 토글
+     */
+    @PatchMapping("/api/admin/games/{gameId}/toggle")
+    public ResponseEntity<?> toggleGameActive(@PathVariable String gameId) {
+        try {
+            Game game = gameService.toggleGameActive(gameId);
+            return ResponseEntity.ok(game);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to toggle game: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 특정 게임의 상세 분석 조회
+     */
+    @GetMapping("/api/admin/games/{gameId}/analytics")
+    public ResponseEntity<?> getGameAnalytics(@PathVariable String gameId) {
+        try {
+            GameAnalyticsDTO analytics = gameAnalyticsService.analyzeGame(gameId);
+            return ResponseEntity.ok(analytics);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to get analytics: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 모든 게임의 분석 요약 조회
+     */
+    @GetMapping("/api/admin/games/analytics")
+    public ResponseEntity<?> getAllGameAnalytics() {
+        try {
+            List<GameAnalyticsDTO> analytics = gameAnalyticsService.analyzeAllGames();
+            return ResponseEntity.ok(analytics);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to get analytics: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 게임 피드백 생성 (관리자용)
+     */
+    @PostMapping("/api/admin/games/feedback")
+    public ResponseEntity<?> createGameFeedback(@RequestBody GameFeedbackCreateRequest request, Authentication authentication) {
+        try {
+            String submittedBy = "admin-" + authentication.getName();
+            GameFeedback feedback = gameService.createGameFeedback(request, submittedBy);
+            return ResponseEntity.ok(feedback);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to create feedback: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 특정 이벤트의 게임 피드백 조회
+     */
+    @GetMapping("/api/admin/events/{eventId}/game-feedbacks")
+    public ResponseEntity<?> getEventGameFeedbacks(@PathVariable Long eventId) {
+        try {
+            List<GameFeedback> feedbacks = gameService.getGameFeedbacksByEvent(eventId);
+            return ResponseEntity.ok(feedbacks);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to get feedbacks: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 특정 게임의 모든 피드백 조회
+     */
+    @GetMapping("/api/admin/games/{gameId}/feedbacks")
+    public ResponseEntity<?> getGameFeedbacks(@PathVariable String gameId) {
+        try {
+            List<GameFeedback> feedbacks = gameService.getGameFeedbacksByGame(gameId);
+            return ResponseEntity.ok(feedbacks);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to get feedbacks: " + e.getMessage());
         }
     }
 

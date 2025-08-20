@@ -3,6 +3,7 @@ package com.slam.slam_backend.service;
 import com.slam.slam_backend.dto.MembershipRequest;
 import com.slam.slam_backend.entity.MembershipApplication;
 import com.slam.slam_backend.entity.User;
+import com.slam.slam_backend.entity.UserStatus;
 import com.slam.slam_backend.repository.MembershipApplicationRepository;
 import com.slam.slam_backend.repository.UserRepository;
 import com.slam.slam_backend.entity.UserMembership; // ✅ 임포트 추가
@@ -84,9 +85,24 @@ public class MembershipService {
 
         // 3. ✅ 사용자 엔티티의 membership 필드도 동기화 (단일 표기용)
         user.setMembership(application.getSelectedBranch());
+        
+        // 4. ✅ 신청서의 상세 정보를 User 테이블에도 저장
+        if (application.getStudentId() != null && !application.getStudentId().trim().isEmpty()) {
+            user.setStudentId(application.getStudentId());
+        }
+        if (application.getPhone() != null && !application.getPhone().trim().isEmpty()) {
+            user.setPhone(application.getPhone());
+        }
+        if (application.getMajor() != null && !application.getMajor().trim().isEmpty()) {
+            user.setMajor(application.getMajor());
+        }
+        
+        // 5. ✅ 사용자 상태를 ACTIVE_MEMBER로 변경
+        user.setStatus(UserStatus.ACTIVE_MEMBER);
+        
         userRepository.save(user);
         
-        // 4. 승인 알림 생성
+        // 6. 승인 알림 생성
         notificationService.createMembershipNotification(user.getEmail(), application.getSelectedBranch(), true);
     }
 
