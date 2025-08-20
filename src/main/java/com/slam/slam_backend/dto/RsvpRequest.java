@@ -8,15 +8,28 @@ import lombok.Setter;
 @Setter
 public class RsvpRequest {
     @JsonProperty("isAttending")
-    private boolean isAttending;
+    private boolean attending;
     
     @JsonProperty("afterParty")
     private boolean afterParty;
     
+    // 명시적으로 boolean getter 메서드 정의
+    public boolean isAttending() {
+        return attending;
+    }
+    
+    public void setAttending(boolean attending) {
+        this.attending = attending;
+    }
+    
+    public boolean isAfterParty() {
+        return afterParty;
+    }
+    
     @Override
     public String toString() {
         return "RsvpRequest{" +
-                "isAttending=" + isAttending +
+                "attending=" + attending +
                 ", afterParty=" + afterParty +
                 '}';
     }
