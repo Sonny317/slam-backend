@@ -73,6 +73,11 @@ public class StaffOnboardingToken {
     private LocalDateTime completedAt;
 
     /**
+     * 마지막 이메일 발송 시간 (3분 제한용)
+     */
+    private LocalDateTime lastEmailSentAt;
+
+    /**
      * 토큰이 만료되었는지 확인
      */
     public boolean isExpired() {
@@ -85,6 +90,40 @@ public class StaffOnboardingToken {
     public void markAsCompleted() {
         this.completed = true;
         this.completedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 이메일 발송 시간 업데이트
+     */
+    public void updateLastEmailSent() {
+        this.lastEmailSentAt = LocalDateTime.now();
+    }
+
+    /**
+     * 이메일 재발송이 가능한지 확인 (3분 제한)
+     */
+    public boolean canResendEmail() {
+        if (lastEmailSentAt == null) {
+            return true;
+        }
+        return LocalDateTime.now().isAfter(lastEmailSentAt.plusMinutes(3));
+    }
+
+    /**
+     * 다음 이메일 발송 가능 시간까지 남은 시간(초) 반환
+     */
+    public long getSecondsUntilNextEmail() {
+        if (lastEmailSentAt == null) {
+            return 0;
+        }
+        LocalDateTime nextAllowedTime = lastEmailSentAt.plusMinutes(3);
+        LocalDateTime now = LocalDateTime.now();
+        
+        if (now.isAfter(nextAllowedTime)) {
+            return 0;
+        }
+        
+        return java.time.Duration.between(now, nextAllowedTime).getSeconds();
     }
 
     /**

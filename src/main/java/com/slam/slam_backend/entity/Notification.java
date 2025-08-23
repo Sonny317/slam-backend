@@ -22,7 +22,7 @@ public class Notification {
     @Column(columnDefinition = "TEXT")
     private String data; // JSON 형태의 추가 데이터
 
-    @Column(nullable = false)
+    @Column(name = "is_read", nullable = false)  // ✅ MySQL + PostgreSQL 호환 (예약어 회피)
     private Boolean read = false;
 
     @Column(nullable = false)
