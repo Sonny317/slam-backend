@@ -26,6 +26,7 @@ import com.slam.slam_backend.service.MembershipService;
 import com.slam.slam_backend.service.StaffService;
 import com.slam.slam_backend.service.GameService;
 import com.slam.slam_backend.service.GameAnalyticsService;
+import com.slam.slam_backend.service.NotificationService;
 import com.slam.slam_backend.dto.GameCreateRequest;
 import com.slam.slam_backend.dto.GameFeedbackCreateRequest;
 import com.slam.slam_backend.dto.GameAnalyticsDTO;
@@ -52,6 +53,7 @@ public class AdminController {
     private final StaffService staffService;
     private final GameService gameService;
     private final GameAnalyticsService gameAnalyticsService;
+    private final NotificationService notificationService;
     private final MembershipApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final UserMembershipRepository userMembershipRepository;
@@ -366,9 +368,9 @@ public class AdminController {
 
             UserRole requesterRole = requester.getRole();
 
-            // 권한 검증
+            // 권한 검증: 스태프 임명 권한 확인
             if (!requesterRole.canAssignStaff()) {
-                return ResponseEntity.status(403).body("권한이 없습니다.");
+                return ResponseEntity.status(403).body("You do not have permission to assign staff roles.");
             }
 
             // 역할 문자열을 enum으로 변환
@@ -376,14 +378,60 @@ public class AdminController {
             try {
                 targetRole = UserRole.valueOf(role.toUpperCase());
             } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().body("유효하지 않은 역할입니다: " + role);
+                return ResponseEntity.badRequest().body("Invalid role: " + role);
+            }
+
+            // 계층 구조 기반 권한 검증
+            if (!requesterRole.canAssignRole(targetRole)) {
+                return ResponseEntity.status(403).body(
+                    String.format("%s does not have permission to assign %s role. (Hierarchy violation)", 
+                                requesterRole.getDisplayName(), 
+                                targetRole.getDisplayName())
+                );
             }
 
             User target = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
+            // ✅ President를 다른 사용자에게 임명하는 경우, 기존 President들을 Staff로 변경
+            if (targetRole == UserRole.PRESIDENT) {
+                List<User> existingPresidents = userRepository.findByRole(UserRole.PRESIDENT);
+                for (User existingPresident : existingPresidents) {
+                    if (!existingPresident.getId().equals(target.getId())) {
+                        UserRole previousRole = existingPresident.getRole();
+                        existingPresident.setRole(UserRole.STAFF);
+                        userRepository.save(existingPresident);
+                        
+                        // 기존 President에게 강등 알림 생성
+                        createRoleChangeNotification(existingPresident, previousRole, UserRole.STAFF, requester);
+                        
+                        System.out.println("기존 President " + existingPresident.getName() + "를 Staff로 변경했습니다.");
+                    }
+                }
+            }
+
+            // 기존 역할 저장 (알림용)
+            UserRole previousRole = target.getRole();
+            
+            System.out.println("🎯 역할 변경 시작:");
+            System.out.println("  - 대상 사용자: " + target.getName() + " (ID: " + target.getId() + ")");
+            System.out.println("  - 이전 역할: " + previousRole);
+            System.out.println("  - 새로운 역할: " + targetRole);
+            System.out.println("  - 변경자: " + requester.getName() + " (ID: " + requester.getId() + ")");
+            
+            // 대상 사용자의 역할 변경
             target.setRole(targetRole);
             userRepository.save(target);
+
+            // 역할 변경 알림 생성
+            try {
+                System.out.println("🔔 알림 생성 메서드 호출 시작...");
+                createRoleChangeNotification(target, previousRole, targetRole, requester);
+                System.out.println("✅ 알림 생성 성공: " + target.getName() + " (" + previousRole + " → " + targetRole + ")");
+            } catch (Exception e) {
+                System.err.println("❌ 알림 생성 실패: " + e.getMessage());
+                e.printStackTrace();
+            }
 
             return ResponseEntity.ok("Role updated to " + target.getRole().getDisplayName());
         } catch (Exception e) {
@@ -407,7 +455,7 @@ public class AdminController {
 
             // 관리자 권한 확인
             if (!requester.getRole().hasAdminAccess()) {
-                return ResponseEntity.status(403).body("권한이 없습니다.");
+                return ResponseEntity.status(403).body("You do not have permission.");
             }
 
             // 상태 문자열을 enum으로 변환
@@ -415,7 +463,7 @@ public class AdminController {
             try {
                 targetStatus = UserStatus.valueOf(status.toUpperCase().replace(" ", "_"));
             } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().body("유효하지 않은 상태입니다: " + status);
+                return ResponseEntity.badRequest().body("Invalid status: " + status);
             }
 
             User target = userRepository.findById(userId)
@@ -938,6 +986,41 @@ public class AdminController {
             return ResponseEntity.ok(feedbacks);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to get feedbacks: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 역할 변경 알림 생성
+     */
+    private void createRoleChangeNotification(User target, UserRole previousRole, UserRole newRole, User changer) {
+        String changeType = getChangeType(previousRole, newRole);
+        String message = String.format("Your role has been changed from %s to %s by %s", 
+                                      previousRole.getDisplayName(), 
+                                      newRole.getDisplayName(), 
+                                      changer.getName());
+        
+        System.out.println("🔧 알림 생성 - 사용자 이메일로 저장: " + target.getEmail());
+        
+        notificationService.createRoleChangeNotification(
+            target.getEmail(),  // ✅ 이메일로 변경 (ID 대신)
+            changer.getName(),
+            previousRole.getDisplayName(),
+            newRole.getDisplayName(),
+            changeType,
+            changer.getId()
+        );
+    }
+
+    private String getChangeType(UserRole previousRole, UserRole newRole) {
+        int previousLevel = previousRole.getHierarchyLevel();
+        int newLevel = newRole.getHierarchyLevel();
+        
+        if (newLevel < previousLevel) {
+            return "promotion"; // 숫자가 작을수록 높은 권한
+        } else if (newLevel > previousLevel) {
+            return "demotion"; // 숫자가 클수록 낮은 권한
+        } else {
+            return "change"; // 같은 레벨
         }
     }
 

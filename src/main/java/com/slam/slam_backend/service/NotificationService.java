@@ -71,4 +71,30 @@ public class NotificationService {
         String data = "{\"eventTitle\": \"" + eventTitle + "\", \"eventId\": " + eventId + "}";
         createNotification(userId, type, message, data);
     }
+
+    public void createStaffInvitationNotification(String userId, String assignerName, String targetRole, Long assignerId) {
+        String type = "staff_invitation";
+        String message = "You have been invited to join as " + targetRole + " by " + assignerName;
+        String data = "{\"assignerName\": \"" + assignerName + "\", \"targetRole\": \"" + targetRole + "\", \"assignerId\": " + assignerId + "}";
+        createNotification(userId, type, message, data);
+    }
+
+    public void createRoleChangeNotification(String userId, String changerName, String previousRole, String newRole, String changeType, Long changerId) {
+        String type = "role_change";
+        String message = "Your role has been changed from " + previousRole + " to " + newRole + " by " + changerName;
+        String data = "{\"changerName\": \"" + changerName + "\", \"previousRole\": \"" + previousRole + "\", \"newRole\": \"" + newRole + "\", \"changeType\": \"" + changeType + "\", \"changerId\": " + changerId + "}";
+        
+        System.out.println("🔔 역할 변경 알림 생성 시도:");
+        System.out.println("  - 대상 사용자 ID: " + userId);
+        System.out.println("  - 메시지: " + message);
+        System.out.println("  - 데이터: " + data);
+        
+        try {
+            Notification notification = createNotification(userId, type, message, data);
+            System.out.println("✅ 알림 저장 성공 - ID: " + notification.getId());
+        } catch (Exception e) {
+            System.err.println("❌ 알림 저장 실패: " + e.getMessage());
+            throw e;
+        }
+    }
 }
