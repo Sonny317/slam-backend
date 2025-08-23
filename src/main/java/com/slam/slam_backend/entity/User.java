@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import com.fasterxml.jackson.annotation.JsonManagedReference; // ✅ JSON 무한 루프 방지
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set; // ✅ 임포트 추가
@@ -79,6 +80,13 @@ public class User implements UserDetails { // ✅ UserDetails 구현
     @Column(length = 100)
     private String major;
 
+    @Column(length = 50)
+    private String nationality;
+
+    // ✅ 가입 날짜 추가
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
     // ✅ 사용자가 가진 모든 멤버십 정보를 담을 '보관함'과의 연결을 추가합니다.
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference // ✅ JSON 무한 루프 방지
@@ -114,5 +122,15 @@ public class User implements UserDetails { // ✅ UserDetails 구현
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    /**
+     * 엔티티 저장 전 자동으로 가입 날짜 설정
+     */
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 }
