@@ -39,6 +39,8 @@ public class MembershipApplication {
     @Column(nullable = false)
     private String status; // 신청 상태 (예: "payment_pending")
 
+    private Long eventId; // 티켓 구매인 경우 해당 이벤트 ID
+
     @CreationTimestamp
     private LocalDateTime createdAt; // 신청일
 

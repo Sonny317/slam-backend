@@ -2,22 +2,24 @@ package com.slam.slam_backend.controller;
 
 import com.slam.slam_backend.dto.EventDTO;
 import com.slam.slam_backend.dto.RsvpRequest;
+import com.slam.slam_backend.dto.MembershipRequest;
 import com.slam.slam_backend.service.EventService;
+import com.slam.slam_backend.service.MembershipService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value; // ✅ 임포트 추가
-import org.springframework.core.io.FileSystemResource; // ✅ 임포트 추가
-import org.springframework.core.io.Resource; // ✅ 임포트 추가
-import org.springframework.http.MediaType; // ✅ 임포트 추가
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication; // ✅ 임포트 추가
-import com.slam.slam_backend.dto.RsvpRequest; // ✅ 임포트 추가
-import com.slam.slam_backend.entity.EventRsvp; // ✅ 임포트 추가
+import org.springframework.security.core.Authentication;
+import com.slam.slam_backend.entity.EventRsvp;
 
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.file.Paths; // ✅ 임포트 추가
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional; // ✅ 임포트 추가
 import java.util.stream.Collectors; // ✅ Collectors 임포트 추가
 
@@ -27,6 +29,7 @@ import java.util.stream.Collectors; // ✅ Collectors 임포트 추가
 public class EventController {
 
     private final EventService eventService;
+    private final MembershipService membershipService;
 
     @Value("${file.upload-dir}") // ✅ application.properties에서 경로를 가져옵니다.
     private String uploadDir;
@@ -54,6 +57,48 @@ public class EventController {
             return ResponseEntity.ok(event);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ✅ 이벤트 참석 상태 확인 API
+    @GetMapping("/{eventId}/attendance-status")
+    public ResponseEntity<?> getAttendanceStatus(@PathVariable Long eventId, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+        }
+
+        try {
+            String userEmail = authentication.getName();
+            
+            // 1. RSVP 상태 확인
+            boolean hasRsvp = eventService.hasUserRsvp(eventId, userEmail);
+            
+            // 2. 승인 대기 중인 티켓 구매 신청 확인
+            boolean hasPendingTicket = membershipService.hasPendingTicketApplication(userEmail, eventId);
+            
+            // ✅ 디버깅 로그 추가
+            System.out.println("🔍 Attendance Status Debug - Event ID: " + eventId + ", User: " + userEmail);
+            System.out.println("   - hasRsvp: " + hasRsvp);
+            System.out.println("   - hasPendingTicket: " + hasPendingTicket);
+            
+            Map<String, Object> status = new HashMap<>();
+            status.put("hasRsvp", hasRsvp);
+            status.put("hasPendingTicket", hasPendingTicket);
+            
+            if (hasRsvp) {
+                status.put("status", "ATTENDING");
+                System.out.println("   - Final Status: ATTENDING");
+            } else if (hasPendingTicket) {
+                status.put("status", "PENDING_APPROVAL");
+                System.out.println("   - Final Status: PENDING_APPROVAL");
+            } else {
+                status.put("status", "NOT_ATTENDING");
+                System.out.println("   - Final Status: NOT_ATTENDING");
+            }
+            
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("상태 확인 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
@@ -231,20 +276,28 @@ public class EventController {
                 return ResponseEntity.badRequest().body(Map.of("error", "이 이벤트는 티켓 구매가 필요하지 않습니다."));
             }
             
-            // 여기서 실제 결제 처리 로직을 구현 (예: 결제 게이트웨이 연동)
-            // 현재는 단순히 RSVP 생성
+            // ✅ 티켓 구매 시 멤버십 신청서만 생성 (승인 대기 상태)
+            MembershipRequest membershipRequest = new MembershipRequest();
+            membershipRequest.setSelectedBranch(eventDTO.getBranch());
+            membershipRequest.setPaymentMethod("Ticket Purchase");
+            membershipRequest.setUserType("Ticket Holder");
             
-            // RSVP 생성 (티켓 구매 완료 처리)
-            RsvpRequest rsvpRequest = new RsvpRequest();
-            rsvpRequest.setAttending(true);
-            rsvpRequest.setAfterParty(false);
+            // 티켓 구매 정보를 멤버십 신청서에 포함
+            if (ticketInfo.containsKey("phone")) {
+                membershipRequest.setPhone(ticketInfo.get("phone"));
+            }
+            if (ticketInfo.containsKey("specialRequests")) {
+                membershipRequest.setFoodAllergies(ticketInfo.get("specialRequests"));
+            }
             
-            eventService.processRsvp(eventId, userEmail, rsvpRequest);
+            // ✅ 이벤트 ID를 포함하여 멤버십 신청
+            membershipService.applyForMembershipWithEvent(userEmail, membershipRequest, eventId);
             
             return ResponseEntity.ok(Map.of(
-                "message", "티켓 구매가 완료되었습니다!",
+                "message", "티켓 구매 신청이 완료되었습니다! Admin 승인을 기다려주세요.",
                 "eventTitle", eventDTO.getTitle(),
-                "ticketInfo", ticketInfo
+                "ticketInfo", ticketInfo,
+                "status", "PENDING_APPROVAL"
             ));
             
         } catch (Exception e) {
