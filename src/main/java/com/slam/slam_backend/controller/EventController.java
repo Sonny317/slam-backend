@@ -32,8 +32,16 @@ public class EventController {
     private String uploadDir;
 
     @GetMapping
-    public ResponseEntity<List<EventDTO>> getAllEvents(@RequestParam(required = false) String branch) {
-        List<EventDTO> events = eventService.findAllEvents(branch);
+    public ResponseEntity<List<EventDTO>> getAllEvents(
+            @RequestParam(required = false) String branch,
+            Authentication authentication) {
+        
+        String userEmail = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            userEmail = authentication.getName();
+        }
+        
+        List<EventDTO> events = eventService.findAllEventsForUser(branch, userEmail);
         System.out.println("EventsPage API called - Total events: " + events.size());
         System.out.println("Events: " + events.stream().map(e -> e.getTitle() + " (" + e.getBranch() + ")").collect(Collectors.toList()));
         return ResponseEntity.ok(events);
@@ -195,6 +203,54 @@ public class EventController {
             return ResponseEntity.ok(Map.of("message", "이벤트가 삭제되었습니다."));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ✅ 티켓 구매 API
+    @PostMapping("/{eventId}/purchase-ticket")
+    public ResponseEntity<?> purchaseTicket(
+            @PathVariable Long eventId,
+            @RequestBody Map<String, String> ticketInfo,
+            Authentication authentication) {
+        
+        if (authentication == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "로그인이 필요합니다."));
+        }
+        
+        try {
+            String userEmail = authentication.getName();
+            
+            // 이벤트 확인
+            EventDTO eventDTO = eventService.findEventById(eventId);
+            if (eventDTO == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "이벤트를 찾을 수 없습니다."));
+            }
+            
+            // Special Event인지 확인
+            if (!"SPECIAL_EVENT".equals(eventDTO.getEventType().toString())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "이 이벤트는 티켓 구매가 필요하지 않습니다."));
+            }
+            
+            // 여기서 실제 결제 처리 로직을 구현 (예: 결제 게이트웨이 연동)
+            // 현재는 단순히 RSVP 생성
+            
+            // RSVP 생성 (티켓 구매 완료 처리)
+            RsvpRequest rsvpRequest = new RsvpRequest();
+            rsvpRequest.setAttending(true);
+            rsvpRequest.setAfterParty(false);
+            
+            eventService.processRsvp(eventId, userEmail, rsvpRequest);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "티켓 구매가 완료되었습니다!",
+                "eventTitle", eventDTO.getTitle(),
+                "ticketInfo", ticketInfo
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "티켓 구매 중 오류가 발생했습니다: " + e.getMessage()
+            ));
         }
     }
 }

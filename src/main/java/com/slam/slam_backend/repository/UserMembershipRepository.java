@@ -15,4 +15,7 @@ public interface UserMembershipRepository extends JpaRepository<UserMembership, 
 
     // ✅ 지부별 ACTIVE 멤버십 전체 조회 (대소문자 무시)
     List<UserMembership> findByBranchNameIgnoreCaseAndStatusIgnoreCase(String branchName, String status);
+    
+    // ✅ 지부별 ACTIVE 멤버십 수 조회
+    long countByBranchNameIgnoreCaseAndStatusIgnoreCase(String branchName, String status);
 }

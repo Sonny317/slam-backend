@@ -60,4 +60,14 @@ public class MembershipController {
         membershipService.updateProfileFromMembership(authentication.getName(), request);
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+    @GetMapping("/pricing")
+    public ResponseEntity<?> getMembershipPricing(@RequestParam String branch) {
+        try {
+            Map<String, Object> pricing = membershipService.getMembershipPricing(branch);
+            return ResponseEntity.ok(pricing);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("가격 정보를 가져오는 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
 }

@@ -55,6 +55,12 @@ public class User implements UserDetails { // ✅ UserDetails 구현
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private UserStatus status;
+    
+    // ✅ 멤버십 타입 추가
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private MembershipType membershipType = MembershipType.NONE;
 
     @Column
     private String interests;

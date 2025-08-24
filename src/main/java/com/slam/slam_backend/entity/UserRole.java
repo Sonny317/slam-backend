@@ -66,14 +66,14 @@ public enum UserRole {
     public boolean canAssignRole(UserRole targetRole) {
         switch (this) {
             case ADMIN:
-                // Admin은 모든 역할 임명 가능
-                return true;
+                // Admin은 모든 역할 임명 가능 (Admin 제외)
+                return targetRole != ADMIN;
             case PRESIDENT:
-                // President는 하위 역할만 임명 가능 (Admin 제외)
-                return targetRole == LEADER || targetRole == STAFF;
+                // President는 하위 역할만 임명 가능 (Admin, President 제외)
+                return targetRole == LEADER || targetRole == STAFF || targetRole == MEMBER;
             case LEADER:
-                // Leader는 Staff만 임명 가능
-                return targetRole == STAFF;
+                // Leader는 Staff와 Member만 임명 가능
+                return targetRole == STAFF || targetRole == MEMBER;
             case STAFF:
             case MEMBER:
                 // Staff와 Member는 임명 권한 없음
