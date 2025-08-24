@@ -594,6 +594,17 @@ public class AdminController {
         }
     }
 
+    // ✅ 멤버십 신청서 목록 조회 API
+    @GetMapping("/applications")
+    public ResponseEntity<List<ApplicationDTO>> getAllApplications() {
+        try {
+            List<ApplicationDTO> applications = membershipService.findAllApplications();
+            return ResponseEntity.ok(applications);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+    }
+
     // ✅ 멤버십 삭제 API 추가
     @DeleteMapping("/users/memberships")
     public ResponseEntity<?> deleteUserMembership(@RequestParam Long userId, @RequestParam String branchName) {
@@ -642,24 +653,33 @@ public class AdminController {
     public ResponseEntity<List<Map<String, Object>>> getUsersByBranch(@RequestParam String branchName,
                                                        @RequestParam(name = "sort", required = false, defaultValue = "name") String sort) {
         try {
-            // 지부별 ACTIVE 멤버십 기반으로 사용자 수집 (대소문자 무시)
-            List<UserMembership> activeMemberships = userMembershipRepository.findByBranchNameIgnoreCaseAndStatusIgnoreCase(branchName, "ACTIVE");
-            System.out.println("[Users/Branch] branch=" + branchName + ", activeMemberships=" + activeMemberships.size());
-
             // ID 기준 dedupe를 위해 LinkedHashMap 사용
             java.util.Map<Long, User> idToUser = new java.util.LinkedHashMap<>();
+            
+            // 1. UserMembership 테이블에서 ACTIVE 멤버십 조회
+            List<UserMembership> activeMemberships = userMembershipRepository.findByBranchNameIgnoreCaseAndStatusIgnoreCase(branchName, "ACTIVE");
+            System.out.println("[Users/Branch] branch=" + branchName + ", activeMemberships=" + activeMemberships.size());
             for (UserMembership um : activeMemberships) {
                 if (um != null && um.getUser() != null && um.getUser().getId() != null) {
                     idToUser.put(um.getUser().getId(), um.getUser());
                 }
             }
 
-            // 단일 문자열 membership 필드 기반 폴백(과거 데이터 호환)
+            // 2. User.membership 필드에서 해당 지부 포함하는 사용자 조회 (Admin 계정 등)
             List<User> usersFromStringField = userRepository.findByMembershipContaining(branchName);
             System.out.println("[Users/Branch] usersFromStringField=" + usersFromStringField.size());
             for (User u : usersFromStringField) {
                 if (u != null && u.getId() != null) {
                     idToUser.put(u.getId(), u);
+                }
+            }
+            
+            // 3. Admin 계정의 경우 모든 지부에 대한 멤버십 권한이 있으므로 추가 확인
+            List<User> adminUsers = userRepository.findByRole(UserRole.ADMIN);
+            System.out.println("[Users/Branch] adminUsers=" + adminUsers.size());
+            for (User admin : adminUsers) {
+                if (admin != null && admin.getId() != null) {
+                    idToUser.put(admin.getId(), admin);
                 }
             }
 
@@ -699,6 +719,49 @@ public class AdminController {
                 "message", ex.getMessage() == null ? "null" : ex.getMessage(),
                 "branch", branchName
             )));
+        }
+    }
+
+    // ✅ Admin 계정 멤버십 설정 API
+    @PostMapping("/setup-admin-memberships")
+    public ResponseEntity<?> setupAdminMemberships() {
+        try {
+            List<User> adminUsers = userRepository.findByRole(UserRole.ADMIN);
+            int setupCount = 0;
+            
+            System.out.println("=== Setup Admin Memberships ===");
+            System.out.println("Admin users found: " + adminUsers.size());
+            
+            for (User admin : adminUsers) {
+                System.out.println("Setting up memberships for Admin: " + admin.getName() + " (ID: " + admin.getId() + ")");
+                
+                // Admin 계정의 membership 필드를 모든 지부로 설정
+                admin.setMembership("NCCU,NTU,TAIPEI");
+                userRepository.save(admin);
+                
+                // UserMembership 테이블에도 ACTIVE 멤버십 추가
+                String[] branches = {"NCCU", "NTU", "TAIPEI"};
+                for (String branch : branches) {
+                    // 기존 멤버십이 있는지 확인
+                    List<UserMembership> existingMemberships = userMembershipRepository.findByUserAndBranchName(admin, branch);
+                    if (existingMemberships.isEmpty()) {
+                        UserMembership membership = UserMembership.builder()
+                                .user(admin)
+                                .branchName(branch)
+                                .status("ACTIVE")
+                                .build();
+                        userMembershipRepository.save(membership);
+                        System.out.println("  - Added " + branch + " membership");
+                    } else {
+                        System.out.println("  - " + branch + " membership already exists");
+                    }
+                }
+                setupCount++;
+            }
+            
+            return ResponseEntity.ok("Setup " + setupCount + " admin memberships for all branches");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to setup admin memberships: " + e.getMessage());
         }
     }
 
