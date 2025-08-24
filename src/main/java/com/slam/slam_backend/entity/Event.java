@@ -64,6 +64,15 @@ public class Event {
     // ✅ 계좌 정보
     private String bankAccount; // 계좌 번호
 
+    // ✅ 이벤트 타입 구분
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private EventType eventType; // REGULAR_MEET, SPECIAL_EVENT
+    
+    private Integer eventSequence; // Regular Meet 순서 (1, 2, 3...)
+    
+    private String productType; // "Membership" or "Ticket"
+
     // 이벤트가 과거 처리(보관)되었는지 여부
     @Column(nullable = false)
     private boolean archived;

@@ -5,7 +5,9 @@ import com.slam.slam_backend.dto.EventRequest;
 import com.slam.slam_backend.dto.RsvpRequest;
 import com.slam.slam_backend.entity.Event;
 import com.slam.slam_backend.entity.EventRsvp;
+import com.slam.slam_backend.entity.EventType;
 import com.slam.slam_backend.entity.User;
+import com.slam.slam_backend.entity.UserRole;
 import com.slam.slam_backend.repository.EventRepository;
 import com.slam.slam_backend.repository.EventRsvpRepository;
 import com.slam.slam_backend.repository.UserRepository;
@@ -41,6 +43,71 @@ public class EventService {
         return events.stream()
                 .map(EventDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public List<EventDTO> findAllEventsForUser(String branch, String userEmail) {
+        List<Event> events;
+        if (branch != null && !branch.isEmpty()) {
+            events = eventRepository.findByBranch(branch);
+        } else {
+            events = eventRepository.findAll();
+        }
+        
+        User user = null;
+        if (userEmail != null) {
+            user = userRepository.findByEmail(userEmail).orElse(null);
+        }
+        
+        final User finalUser = user;
+        return events.stream()
+                .map(event -> enrichEventForUser(event, finalUser))
+                .collect(Collectors.toList());
+    }
+    
+    private EventDTO enrichEventForUser(Event event, User user) {
+        EventDTO dto = EventDTO.fromEntity(event);
+        
+        if (user == null) {
+            // 비로그인 사용자
+            dto = dto.toBuilder()
+                    .canJoinForFree(false)
+                    .joinButtonText("Join " + (event.getProductType() != null ? event.getProductType() : "Membership"))
+                    .build();
+        } else {
+            // 로그인 사용자 권한 체크
+            boolean canJoinForFree = canUserJoinForFree(user, event);
+            String buttonText = canJoinForFree ? "Going/Not Going" : "Join " + (event.getProductType() != null ? event.getProductType() : "Membership");
+            
+            dto = dto.toBuilder()
+                    .canJoinForFree(canJoinForFree)
+                    .joinButtonText(buttonText)
+                    .build();
+        }
+        
+        return dto;
+    }
+    
+    private boolean canUserJoinForFree(User user, Event event) {
+        // ✅ Admin/Staff/President는 모든 이벤트에 무료 참석 가능
+        if (user.getRole() == UserRole.ADMIN || 
+            user.getRole() == UserRole.STAFF || 
+            user.getRole() == UserRole.PRESIDENT || 
+            user.getRole() == UserRole.LEADER) {
+            return true;
+        }
+        
+        // Special Event는 일반 사용자에게는 항상 결제 필요
+        if (event.getEventType() == EventType.SPECIAL_EVENT) {
+            return false;
+        }
+        
+        // Regular Meet는 멤버십 타입에 따라 결정
+        if (event.getEventType() == EventType.REGULAR_MEET && event.getEventSequence() != null) {
+            return user.getMembershipType().canJoinEvent(event.getEventSequence());
+        }
+        
+        return false;
     }
 
     @Transactional(readOnly = true)
@@ -81,8 +148,34 @@ public class EventService {
         Event newEvent = eventDTO.toEntity();
         newEvent.setCurrentAttendees(0);
         newEvent.setArchived(false);
+        
+        // ✅ Theme 기반으로 EventType과 ProductType 자동 설정
+        autoSetEventTypeFromTheme(newEvent);
+        
         Event savedEvent = eventRepository.save(newEvent);
         return EventDTO.fromEntity(savedEvent);
+    }
+    
+    private void autoSetEventTypeFromTheme(Event event) {
+        String theme = event.getTheme();
+        if (theme != null) {
+            String lowerTheme = theme.toLowerCase();
+            
+            // Regular SLAM Meet인 경우
+            if (lowerTheme.contains("regular") && lowerTheme.contains("slam") && lowerTheme.contains("meet")) {
+                event.setEventType(EventType.REGULAR_MEET);
+                event.setProductType("Membership");
+            } 
+            // 그 외 모든 테마는 Special Event
+            else {
+                event.setEventType(EventType.SPECIAL_EVENT);
+                event.setProductType("Ticket");
+            }
+        } else {
+            // Theme이 없으면 기본값
+            event.setEventType(EventType.REGULAR_MEET);
+            event.setProductType("Membership");
+        }
     }
 
     @Transactional
@@ -131,6 +224,9 @@ public class EventService {
         existingEvent.setEndTime(eventDTO.getEndTime());
         existingEvent.setBankAccount(eventDTO.getBankAccount());
 
+        // ✅ Theme 변경 시 EventType과 ProductType 자동 재설정
+        autoSetEventTypeFromTheme(existingEvent);
+
         Event savedEvent = eventRepository.save(existingEvent);
         return EventDTO.fromEntity(savedEvent);
     }
@@ -160,15 +256,29 @@ public class EventService {
     // ✅ deleteEvent 메소드를 수정합니다.
     @Transactional
     public void deleteEvent(Long eventId) {
+        System.out.println("🔍 EventService.deleteEvent 시작 - Event ID: " + eventId);
+        
         if (!eventRepository.existsById(eventId)) {
+            System.out.println("❌ 이벤트를 찾을 수 없음 - Event ID: " + eventId);
             throw new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId);
         }
 
         // 1. 이 이벤트에 연결된 모든 RSVP(티켓) 기록을 먼저 삭제합니다.
+        System.out.println("🔄 RSVP 삭제 시작 - Event ID: " + eventId);
+        long rsvpCount = eventRsvpRepository.findByEvent_Id(eventId).size();
+        System.out.println("📊 삭제할 RSVP 개수: " + rsvpCount);
+        
         eventRsvpRepository.deleteAllByEventId(eventId);
+        System.out.println("✅ RSVP 삭제 완료 - Event ID: " + eventId);
 
         // 2. 이제 이벤트를 안전하게 삭제할 수 있습니다.
+        System.out.println("🔄 이벤트 삭제 시작 - Event ID: " + eventId);
         eventRepository.deleteById(eventId);
+        System.out.println("✅ 이벤트 삭제 완료 - Event ID: " + eventId);
+        
+        // 3. 삭제 후 확인
+        boolean stillExists = eventRepository.existsById(eventId);
+        System.out.println("🔍 삭제 후 존재 여부: " + stillExists);
     }
 
     // ✅ 이벤트별 참석자 목록 조회

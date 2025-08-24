@@ -5,6 +5,12 @@
 
 -- MySQL용 Event 테이블 업데이트
 ALTER TABLE events ADD COLUMN bank_account VARCHAR(100) COMMENT '계좌 번호';
+ALTER TABLE events ADD COLUMN event_type VARCHAR(20) DEFAULT 'REGULAR_MEET' COMMENT '이벤트 타입';
+ALTER TABLE events ADD COLUMN event_sequence INT COMMENT '이벤트 순서';
+ALTER TABLE events ADD COLUMN product_type VARCHAR(20) DEFAULT 'Membership' COMMENT '상품 타입';
+
+-- User 테이블에 멤버십 타입 추가
+ALTER TABLE users ADD COLUMN membership_type VARCHAR(20) DEFAULT 'NONE' COMMENT '멤버십 타입';
 
 -- 이미 존재하는 컬럼들 확인 (오류 발생 시 무시)
 -- ALTER TABLE events ADD COLUMN early_bird_price INT COMMENT '얼리버드 가격';

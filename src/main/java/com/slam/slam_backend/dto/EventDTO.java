@@ -1,13 +1,18 @@
 package com.slam.slam_backend.dto;
 
 import com.slam.slam_backend.entity.Event;
+import com.slam.slam_backend.entity.EventType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Builder
+@Data
+@Builder(toBuilder = true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class EventDTO {
     private Long id;
     private String branch;
@@ -32,9 +37,18 @@ public class EventDTO {
     private String endTime;
     private String bankAccount;
     
+    // ✅ 이벤트 타입 관련
+    private EventType eventType;
+    private Integer eventSequence;
+    private String productType;
+    
     // ✅ 현재 가격 계산 (얼리버드 조건에 따라)
     private Integer currentPrice;
     private Boolean isEarlyBirdActive;
+    
+    // ✅ 사용자별 참가 권한
+    private Boolean canJoinForFree;
+    private String joinButtonText;
     
     // TODO: 나중에 리뷰 목록도 여기에 추가할 수 있습니다.
 
@@ -76,6 +90,9 @@ public class EventDTO {
                 .showCapacityWarning(event.getShowCapacityWarning())
                 .endTime(event.getEndTime())
                 .bankAccount(event.getBankAccount())
+                .eventType(event.getEventType())
+                .eventSequence(event.getEventSequence())
+                .productType(event.getProductType())
                 .currentPrice(currentPrice)
                 .isEarlyBirdActive(isEarlyBirdActive)
                 .build();
@@ -104,6 +121,9 @@ public class EventDTO {
         event.setShowCapacityWarning(this.showCapacityWarning);
         event.setEndTime(this.endTime);
         event.setBankAccount(this.bankAccount);
+        event.setEventType(this.eventType);
+        event.setEventSequence(this.eventSequence);
+        event.setProductType(this.productType);
         return event;
     }
 }
