@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -72,8 +73,9 @@ public class PostController {
 
     // 댓글 추가
     @PostMapping("/{postId}/comments")
-    public ResponseEntity<CommentDTO> addComment(@PathVariable Long postId, @RequestBody CommentDTO commentDTO) {
-        CommentDTO createdComment = postService.addComment(postId, commentDTO);
+    public ResponseEntity<CommentDTO> addComment(@PathVariable Long postId, @RequestBody CommentDTO commentDTO, Authentication authentication) {
+        String authorEmail = authentication != null && authentication.isAuthenticated() ? authentication.getName() : commentDTO.getAuthor();
+        CommentDTO createdComment = postService.addComment(postId, commentDTO, authorEmail);
         return ResponseEntity.ok(createdComment);
     }
 
@@ -103,5 +105,22 @@ public class PostController {
         }
     }
 
+    // Poll 투표
+    @PostMapping("/{postId}/poll/vote")
+    public ResponseEntity<?> voteOnPoll(@PathVariable Long postId, @RequestBody Map<String, Integer> request, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Authentication required");
+        }
+        
+        try {
+            int optionIndex = request.get("optionIndex");
+            Map<String, Object> result = postService.voteOnPoll(postId, authentication.getName(), optionIndex);
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(400).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to vote: " + e.getMessage());
+        }
+    }
 
 } 

@@ -83,6 +83,37 @@ public class User implements UserDetails { // ✅ UserDetails 구현
     @Column(length = 50)
     private String nationality;
 
+    // ✅ 멤버십 관련 정보 (Single Source of Truth)
+    @Column(length = 50)
+    private String userType; // Local, International, Exchange 등
+    
+    @Column(length = 100)
+    private String otherMajor;
+    
+    @Column(length = 100)
+    private String professionalStatus;
+    
+    @Column(length = 50)
+    private String country;
+    
+    @Column(length = 500)
+    private String foodAllergies;
+    
+    @Column(length = 50)
+    private String paymentMethod;
+    
+    @Column(length = 10)
+    private String bankLast5;
+    
+    @Column(length = 100)
+    private String industry;
+    
+    @Column(length = 100)
+    private String networkingGoal;
+    
+    @Column(length = 200)
+    private String otherNetworkingGoal;
+
     // ✅ 가입 날짜 추가
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

@@ -30,6 +30,7 @@ public class EventDTO {
     private Integer capacityWarningThreshold;
     private Boolean showCapacityWarning;
     private String endTime;
+    private String bankAccount;
     
     // ✅ 현재 가격 계산 (얼리버드 조건에 따라)
     private Integer currentPrice;
@@ -74,6 +75,7 @@ public class EventDTO {
                 .capacityWarningThreshold(event.getCapacityWarningThreshold())
                 .showCapacityWarning(event.getShowCapacityWarning())
                 .endTime(event.getEndTime())
+                .bankAccount(event.getBankAccount())
                 .currentPrice(currentPrice)
                 .isEarlyBirdActive(isEarlyBirdActive)
                 .build();
@@ -101,6 +103,7 @@ public class EventDTO {
         event.setCapacityWarningThreshold(this.capacityWarningThreshold);
         event.setShowCapacityWarning(this.showCapacityWarning);
         event.setEndTime(this.endTime);
+        event.setBankAccount(this.bankAccount);
         return event;
     }
 }

@@ -2,6 +2,7 @@ package com.slam.slam_backend.controller;
 
 import com.slam.slam_backend.dto.MembershipRequest;
 import com.slam.slam_backend.entity.MembershipApplication;
+import com.slam.slam_backend.dto.ApplicationDTO;
 import com.slam.slam_backend.service.MembershipService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -37,5 +38,26 @@ public class MembershipController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("신청 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/my-application")
+    public ResponseEntity<?> getMyLatestApplication(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Authentication required");
+        }
+        MembershipApplication app = membershipService.findMyLatestApplication(authentication.getName());
+        if (app == null) {
+            return ResponseEntity.status(404).body("No membership application found");
+        }
+        return ResponseEntity.ok(ApplicationDTO.fromEntity(app));
+    }
+
+    @PutMapping("/update-profile")
+    public ResponseEntity<?> updateProfileFromMembership(@RequestBody MembershipRequest request, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Authentication required");
+        }
+        membershipService.updateProfileFromMembership(authentication.getName(), request);
+        return ResponseEntity.ok(Map.of("success", true));
     }
 }

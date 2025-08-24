@@ -77,6 +77,15 @@ public class EventService {
     }
 
     @Transactional
+    public EventDTO createEvent(EventDTO eventDTO) {
+        Event newEvent = eventDTO.toEntity();
+        newEvent.setCurrentAttendees(0);
+        newEvent.setArchived(false);
+        Event savedEvent = eventRepository.save(newEvent);
+        return EventDTO.fromEntity(savedEvent);
+    }
+
+    @Transactional
     public Event createEvent(EventRequest request) {
         Event newEvent = new Event();
         newEvent.setBranch(request.getBranch());
@@ -91,6 +100,39 @@ public class EventService {
         newEvent.setCurrentAttendees(0);
         newEvent.setArchived(false);
         return eventRepository.save(newEvent);
+    }
+
+    @Transactional
+    public EventDTO updateEvent(Long eventId, EventDTO eventDTO) {
+        Event existingEvent = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId));
+
+        // ✅ 모든 새로운 필드들을 포함하여 업데이트
+        existingEvent.setBranch(eventDTO.getBranch());
+        existingEvent.setTitle(eventDTO.getTitle());
+        existingEvent.setTheme(eventDTO.getTheme());
+        existingEvent.setEventDateTime(eventDTO.getEventDateTime());
+        existingEvent.setLocation(eventDTO.getLocation());
+        existingEvent.setDescription(eventDTO.getDescription());
+        existingEvent.setImageUrl(eventDTO.getImageUrl());
+        existingEvent.setCapacity(eventDTO.getCapacity());
+        existingEvent.setPrice(eventDTO.getPrice());
+        existingEvent.setArchived(eventDTO.isArchived());
+        
+        // ✅ Early bird 관련 필드들
+        existingEvent.setEarlyBirdPrice(eventDTO.getEarlyBirdPrice());
+        existingEvent.setEarlyBirdEndDate(eventDTO.getEarlyBirdEndDate());
+        existingEvent.setEarlyBirdCapacity(eventDTO.getEarlyBirdCapacity());
+        
+        // ✅ 데드라인 및 기타 새 필드들
+        existingEvent.setRegistrationDeadline(eventDTO.getRegistrationDeadline());
+        existingEvent.setCapacityWarningThreshold(eventDTO.getCapacityWarningThreshold());
+        existingEvent.setShowCapacityWarning(eventDTO.getShowCapacityWarning());
+        existingEvent.setEndTime(eventDTO.getEndTime());
+        existingEvent.setBankAccount(eventDTO.getBankAccount());
+
+        Event savedEvent = eventRepository.save(existingEvent);
+        return EventDTO.fromEntity(savedEvent);
     }
 
     @Transactional

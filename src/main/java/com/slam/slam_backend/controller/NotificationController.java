@@ -99,6 +99,26 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
+    // Create notification endpoint
+    @PostMapping
+    public ResponseEntity<Notification> createNotification(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+
+        String recipientEmail = (String) request.get("recipientEmail");
+        String type = (String) request.get("type");
+        String message = (String) request.get("message");
+        Map<String, Object> data = (Map<String, Object>) request.get("data");
+        String dataString = data != null ? data.toString() : null;
+
+        Notification notification = notificationService.createNotification(recipientEmail, type, message, dataString);
+        return ResponseEntity.ok(notification);
+    }
+
     // Admin endpoint to create test notifications
     @PostMapping("/test")
     public ResponseEntity<Notification> createTestNotification(

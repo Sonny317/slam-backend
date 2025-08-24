@@ -19,6 +19,22 @@ public class MyPageResponse {
     private String profileImage;
     private String role; // ✅ role 필드 추가
     private List<String> memberships; // ✅ String에서 List<String>으로 변경
+    
+    // ✅ 멤버십 관련 정보 (Single Source of Truth에서 가져옴)
+    private String phone;
+    private String studentId;
+    private String major;
+    private String nationality;
+    private String userType;
+    private String otherMajor;
+    private String professionalStatus;
+    private String country;
+    private String foodAllergies;
+    private String paymentMethod;
+    private String bankLast5;
+    private String industry;
+    private String networkingGoal;
+    private String otherNetworkingGoal;
     // 나중에 게시글, 댓글 목록도 여기에 추가할 수 있습니다.
 
     /// User 엔티티를 MyPageResponse DTO로 변환하는 정적 메소드
@@ -86,6 +102,21 @@ public class MyPageResponse {
                 .profileImage(user.getProfileImage())
                 .role(user.getRole().name())
                 .memberships(validMemberships)
+                // ✅ 멤버십 관련 정보 포함 (Single Source of Truth)
+                .phone(user.getPhone())
+                .studentId(user.getStudentId())
+                .major(user.getMajor())
+                .nationality(user.getNationality())
+                .userType(user.getUserType())
+                .otherMajor(user.getOtherMajor())
+                .professionalStatus(user.getProfessionalStatus())
+                .country(user.getCountry())
+                .foodAllergies(user.getFoodAllergies())
+                .paymentMethod(user.getPaymentMethod())
+                .bankLast5(user.getBankLast5())
+                .industry(user.getIndustry())
+                .networkingGoal(user.getNetworkingGoal())
+                .otherNetworkingGoal(user.getOtherNetworkingGoal())
                 .build();
     }
 }

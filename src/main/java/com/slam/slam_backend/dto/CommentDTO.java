@@ -7,6 +7,8 @@ public class CommentDTO {
     private Long id;
     private String text;
     private String author;
+    private String authorEmail;
+    private String authorDisplayName;
     private LocalDateTime createdAt;
 
     // Constructors
@@ -16,6 +18,8 @@ public class CommentDTO {
         this.id = comment.getId();
         this.text = comment.getText();
         this.author = comment.getAuthor();
+        this.authorEmail = comment.getAuthor();
+        this.authorDisplayName = null;
         this.createdAt = comment.getCreatedAt();
     }
 
@@ -42,6 +46,22 @@ public class CommentDTO {
 
     public void setAuthor(String author) {
         this.author = author;
+    }
+
+    public String getAuthorEmail() {
+        return authorEmail;
+    }
+
+    public void setAuthorEmail(String authorEmail) {
+        this.authorEmail = authorEmail;
+    }
+
+    public String getAuthorDisplayName() {
+        return authorDisplayName;
+    }
+
+    public void setAuthorDisplayName(String authorDisplayName) {
+        this.authorDisplayName = authorDisplayName;
     }
 
     public LocalDateTime getCreatedAt() {
