@@ -348,4 +348,12 @@ public class EventService {
         rsvp.setAttended(true);
         eventRsvpRepository.save(rsvp);
     }
+
+    // ✅ 사용자의 RSVP 상태 확인
+    @Transactional(readOnly = true)
+    public boolean hasUserRsvp(Long eventId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail).orElse(null);
+        if (user == null) return false;
+        return eventRsvpRepository.existsByUser_IdAndEvent_Id(user.getId(), eventId);
+    }
 }
