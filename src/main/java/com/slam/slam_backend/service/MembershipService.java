@@ -35,6 +35,43 @@ public class MembershipService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + userEmail));
 
+        // ✅ Single Source of Truth: User 테이블을 직접 업데이트
+        if (request.getUserType() != null && !request.getUserType().trim().isEmpty()) {
+            user.setUserType(request.getUserType());
+        }
+        if (request.getStudentId() != null && !request.getStudentId().trim().isEmpty()) {
+            user.setStudentId(request.getStudentId());
+        }
+        if (request.getMajor() != null && !request.getMajor().trim().isEmpty()) {
+            user.setMajor(request.getMajor());
+        }
+        if (request.getOtherMajor() != null && !request.getOtherMajor().trim().isEmpty()) {
+            user.setOtherMajor(request.getOtherMajor());
+        }
+        if (request.getProfessionalStatus() != null && !request.getProfessionalStatus().trim().isEmpty()) {
+            user.setProfessionalStatus(request.getProfessionalStatus());
+        }
+        if (request.getCountry() != null && !request.getCountry().trim().isEmpty()) {
+            user.setCountry(request.getCountry());
+            user.setNationality(request.getCountry()); // nationality도 동기화
+        }
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            user.setPhone(request.getPhone());
+        }
+        if (request.getFoodAllergies() != null && !request.getFoodAllergies().trim().isEmpty()) {
+            user.setFoodAllergies(request.getFoodAllergies());
+        }
+        if (request.getPaymentMethod() != null && !request.getPaymentMethod().trim().isEmpty()) {
+            user.setPaymentMethod(request.getPaymentMethod());
+        }
+        if (request.getBankLast5() != null && !request.getBankLast5().trim().isEmpty()) {
+            user.setBankLast5(request.getBankLast5());
+        }
+
+        // User 테이블 업데이트
+        userRepository.save(user);
+
+        // ✅ 신청서는 이제 참조용/히스토리용으로만 저장
         MembershipApplication application = MembershipApplication.builder()
                 .user(user)
                 .selectedBranch(request.getSelectedBranch())
@@ -52,6 +89,54 @@ public class MembershipService {
                 .build();
 
         return applicationRepository.save(application);
+    }
+
+    @Transactional(readOnly = true)
+    public MembershipApplication findMyLatestApplication(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + userEmail));
+        return applicationRepository.findTopByUserOrderByCreatedAtDesc(user);
+    }
+
+    @Transactional
+    public void updateProfileFromMembership(String userEmail, com.slam.slam_backend.dto.MembershipRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + userEmail));
+
+        // ✅ 모든 멤버십 관련 필드를 User 테이블에 업데이트
+        if (request.getUserType() != null && !request.getUserType().trim().isEmpty()) {
+            user.setUserType(request.getUserType());
+        }
+        if (request.getStudentId() != null && !request.getStudentId().trim().isEmpty()) {
+            user.setStudentId(request.getStudentId());
+        }
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            user.setPhone(request.getPhone());
+        }
+        if (request.getMajor() != null && !request.getMajor().trim().isEmpty()) {
+            user.setMajor(request.getMajor());
+        }
+        if (request.getOtherMajor() != null && !request.getOtherMajor().trim().isEmpty()) {
+            user.setOtherMajor(request.getOtherMajor());
+        }
+        if (request.getProfessionalStatus() != null && !request.getProfessionalStatus().trim().isEmpty()) {
+            user.setProfessionalStatus(request.getProfessionalStatus());
+        }
+        if (request.getCountry() != null && !request.getCountry().trim().isEmpty()) {
+            user.setCountry(request.getCountry());
+            user.setNationality(request.getCountry());
+        }
+        if (request.getFoodAllergies() != null && !request.getFoodAllergies().trim().isEmpty()) {
+            user.setFoodAllergies(request.getFoodAllergies());
+        }
+        if (request.getPaymentMethod() != null && !request.getPaymentMethod().trim().isEmpty()) {
+            user.setPaymentMethod(request.getPaymentMethod());
+        }
+        if (request.getBankLast5() != null && !request.getBankLast5().trim().isEmpty()) {
+            user.setBankLast5(request.getBankLast5());
+        }
+
+        userRepository.save(user);
     }
 
     // ✅ 추가: 모든 멤버십 신청 목록을 조회하는 메소드

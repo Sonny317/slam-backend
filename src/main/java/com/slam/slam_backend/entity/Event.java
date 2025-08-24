@@ -61,6 +61,9 @@ public class Event {
     // ✅ 종료 시간 추가
     private String endTime; // 종료 시간
 
+    // ✅ 계좌 정보
+    private String bankAccount; // 계좌 번호
+
     // 이벤트가 과거 처리(보관)되었는지 여부
     @Column(nullable = false)
     private boolean archived;
