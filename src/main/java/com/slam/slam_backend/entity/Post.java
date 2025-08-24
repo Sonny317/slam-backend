@@ -44,6 +44,10 @@ public class Post {
     @JsonManagedReference
     private List<Comment> comments = new ArrayList<>();
 
+    @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JsonManagedReference
+    private Poll poll;
+
     // Constructors
     public Post() {}
 
@@ -144,4 +148,7 @@ public class Post {
     public void setComments(List<Comment> comments) {
         this.comments = comments;
     }
+
+    public Poll getPoll() { return poll; }
+    public void setPoll(Poll poll) { this.poll = poll; }
 } 

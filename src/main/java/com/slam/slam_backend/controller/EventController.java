@@ -129,4 +129,72 @@ public class EventController {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
+
+    // ✅ 이벤트 생성 API
+    @PostMapping
+    public ResponseEntity<?> createEvent(@RequestBody EventDTO eventDTO, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+        }
+        
+        try {
+            EventDTO savedEvent = eventService.createEvent(eventDTO);
+            return ResponseEntity.ok(savedEvent);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ✅ 이벤트 수정 API
+    @PutMapping("/{eventId}")
+    public ResponseEntity<?> updateEvent(@PathVariable Long eventId, @RequestBody EventDTO eventDTO, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+        }
+        
+        try {
+            eventDTO = EventDTO.builder()
+                    .id(eventId)
+                    .branch(eventDTO.getBranch())
+                    .title(eventDTO.getTitle())
+                    .theme(eventDTO.getTheme())
+                    .eventDateTime(eventDTO.getEventDateTime())
+                    .location(eventDTO.getLocation())
+                    .description(eventDTO.getDescription())
+                    .imageUrl(eventDTO.getImageUrl())
+                    .capacity(eventDTO.getCapacity())
+                    .currentAttendees(eventDTO.getCurrentAttendees())
+                    .price(eventDTO.getPrice())
+                    .archived(eventDTO.isArchived())
+                    .earlyBirdPrice(eventDTO.getEarlyBirdPrice())
+                    .earlyBirdEndDate(eventDTO.getEarlyBirdEndDate())
+                    .earlyBirdCapacity(eventDTO.getEarlyBirdCapacity())
+                    .registrationDeadline(eventDTO.getRegistrationDeadline())
+                    .capacityWarningThreshold(eventDTO.getCapacityWarningThreshold())
+                    .showCapacityWarning(eventDTO.getShowCapacityWarning())
+                    .endTime(eventDTO.getEndTime())
+                    .bankAccount(eventDTO.getBankAccount())
+                    .build();
+            
+            EventDTO updatedEvent = eventService.updateEvent(eventId, eventDTO);
+            return ResponseEntity.ok(updatedEvent);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ✅ 이벤트 삭제 API
+    @DeleteMapping("/{eventId}")
+    public ResponseEntity<?> deleteEvent(@PathVariable Long eventId, Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+        }
+        
+        try {
+            eventService.deleteEvent(eventId);
+            return ResponseEntity.ok(Map.of("message", "이벤트가 삭제되었습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }
