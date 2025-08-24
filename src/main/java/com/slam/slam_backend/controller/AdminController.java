@@ -4,6 +4,7 @@ import com.slam.slam_backend.dto.ApplicationDTO;
 import com.slam.slam_backend.dto.EventDTO;
 import com.slam.slam_backend.dto.StaffAssignmentRequest;
 import com.slam.slam_backend.entity.Event;
+import com.slam.slam_backend.entity.EventType;
 import com.slam.slam_backend.entity.ActionTask;
 import com.slam.slam_backend.entity.MembershipApplication;
 import com.slam.slam_backend.entity.User;
@@ -202,10 +203,22 @@ public class AdminController {
             @RequestParam String title,
             @RequestParam(required = false) String theme,
             @RequestParam String eventDateTime,
+            @RequestParam(required = false) String endTime,
             @RequestParam String location,
             @RequestParam(required = false) String description,
             @RequestParam int capacity,
             @RequestParam int price,
+            // ✅ Early Bird 관련 필드들
+            @RequestParam(required = false) Integer earlyBirdPrice,
+            @RequestParam(required = false) String earlyBirdEndDate,
+            @RequestParam(required = false) Integer earlyBirdCapacity,
+            // ✅ 등록 데드라인
+            @RequestParam(required = false) String registrationDeadline,
+            // ✅ 용량 경고 설정
+            @RequestParam(required = false) Integer capacityWarningThreshold,
+            @RequestParam(required = false, defaultValue = "false") Boolean showCapacityWarning,
+            // ✅ 계좌 정보
+            @RequestParam(required = false) String bankAccount,
             @RequestPart(name = "image", required = false) MultipartFile image
     ) {
         try {
@@ -214,11 +227,33 @@ public class AdminController {
             event.setTitle(title);
             event.setTheme(theme);
             event.setEventDateTime(java.time.LocalDateTime.parse(eventDateTime));
+            event.setEndTime(endTime);
             event.setLocation(location);
             event.setDescription(description);
             event.setCapacity(capacity);
             event.setPrice(price);
             event.setCurrentAttendees(0);
+            event.setArchived(false);
+            
+            // ✅ Early Bird 관련 필드들 설정
+            event.setEarlyBirdPrice(earlyBirdPrice);
+            event.setEarlyBirdEndDate(earlyBirdEndDate != null && !earlyBirdEndDate.isEmpty() 
+                ? java.time.LocalDateTime.parse(earlyBirdEndDate) : null);
+            event.setEarlyBirdCapacity(earlyBirdCapacity);
+            
+            // ✅ 등록 데드라인 설정
+            event.setRegistrationDeadline(registrationDeadline != null && !registrationDeadline.isEmpty() 
+                ? java.time.LocalDateTime.parse(registrationDeadline) : null);
+                
+            // ✅ 용량 경고 설정
+            event.setCapacityWarningThreshold(capacityWarningThreshold);
+            event.setShowCapacityWarning(showCapacityWarning);
+            
+            // ✅ 계좌 정보 설정
+            event.setBankAccount(bankAccount);
+            
+            // ✅ Theme 기반으로 EventType과 ProductType 자동 설정
+            autoSetEventTypeFromTheme(event);
 
             if (image != null && !image.isEmpty()) {
                 String original = image.getOriginalFilename();
@@ -267,10 +302,22 @@ public class AdminController {
             @RequestParam String title,
             @RequestParam(required = false) String theme,
             @RequestParam String eventDateTime,
+            @RequestParam(required = false) String endTime,
             @RequestParam String location,
             @RequestParam(required = false) String description,
             @RequestParam int capacity,
             @RequestParam int price,
+            // ✅ Early Bird 관련 필드들
+            @RequestParam(required = false) Integer earlyBirdPrice,
+            @RequestParam(required = false) String earlyBirdEndDate,
+            @RequestParam(required = false) Integer earlyBirdCapacity,
+            // ✅ 등록 데드라인
+            @RequestParam(required = false) String registrationDeadline,
+            // ✅ 용량 경고 설정
+            @RequestParam(required = false) Integer capacityWarningThreshold,
+            @RequestParam(required = false, defaultValue = "false") Boolean showCapacityWarning,
+            // ✅ 계좌 정보
+            @RequestParam(required = false) String bankAccount,
             @RequestPart(name = "image", required = false) MultipartFile image
     ) {
         try {
@@ -281,10 +328,31 @@ public class AdminController {
             existingEvent.setTitle(title);
             existingEvent.setTheme(theme);
             existingEvent.setEventDateTime(java.time.LocalDateTime.parse(eventDateTime));
+            existingEvent.setEndTime(endTime);
             existingEvent.setLocation(location);
             existingEvent.setDescription(description);
             existingEvent.setCapacity(capacity);
             existingEvent.setPrice(price);
+            
+            // ✅ Early Bird 관련 필드들 설정
+            existingEvent.setEarlyBirdPrice(earlyBirdPrice);
+            existingEvent.setEarlyBirdEndDate(earlyBirdEndDate != null && !earlyBirdEndDate.isEmpty() 
+                ? java.time.LocalDateTime.parse(earlyBirdEndDate) : null);
+            existingEvent.setEarlyBirdCapacity(earlyBirdCapacity);
+            
+            // ✅ 등록 데드라인 설정
+            existingEvent.setRegistrationDeadline(registrationDeadline != null && !registrationDeadline.isEmpty() 
+                ? java.time.LocalDateTime.parse(registrationDeadline) : null);
+                
+            // ✅ 용량 경고 설정
+            existingEvent.setCapacityWarningThreshold(capacityWarningThreshold);
+            existingEvent.setShowCapacityWarning(showCapacityWarning);
+            
+            // ✅ 계좌 정보 설정
+            existingEvent.setBankAccount(bankAccount);
+            
+            // ✅ Theme 기반으로 EventType과 ProductType 자동 설정
+            autoSetEventTypeFromTheme(existingEvent);
 
             if (image != null && !image.isEmpty()) {
                 String original = image.getOriginalFilename();
@@ -305,12 +373,31 @@ public class AdminController {
     }
 
     @DeleteMapping("/events")
-    public ResponseEntity<?> deleteEvent(@RequestParam Long eventId) {
+    public ResponseEntity<?> deleteEvent(@RequestParam Long eventId, Authentication authentication) {
+        System.out.println("🗑️ 이벤트 삭제 요청 - Event ID: " + eventId);
+        
+        if (authentication == null) {
+            System.out.println("❌ 인증 실패 - Authentication is null");
+            return ResponseEntity.status(401).body(Map.of("error", "로그인이 필요합니다."));
+        }
+        
+        // 관리자 권한 체크
+        String userEmail = authentication.getName();
+        User user = userRepository.findByEmail(userEmail).orElse(null);
+        if (user == null || !isAdmin(user)) {
+            System.out.println("❌ 권한 실패 - User: " + userEmail + ", Role: " + (user != null ? user.getRole() : "null"));
+            return ResponseEntity.status(403).body(Map.of("error", "관리자 권한이 필요합니다."));
+        }
+        
         try {
-            eventRepository.deleteById(eventId);
-            return ResponseEntity.ok("Event deleted successfully");
+            System.out.println("🔄 이벤트 삭제 시작 - Event ID: " + eventId);
+            eventService.deleteEvent(eventId);  // ✅ EventService 사용으로 안전한 삭제
+            System.out.println("✅ 이벤트 삭제 완료 - Event ID: " + eventId);
+            return ResponseEntity.ok(Map.of("message", "이벤트가 삭제되었습니다."));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            System.out.println("❌ 이벤트 삭제 실패 - Event ID: " + eventId + ", Error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -1021,6 +1108,32 @@ public class AdminController {
             return "demotion"; // 숫자가 클수록 낮은 권한
         } else {
             return "change"; // 같은 레벨
+        }
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.PRESIDENT;
+    }
+    
+    private void autoSetEventTypeFromTheme(Event event) {
+        String theme = event.getTheme();
+        if (theme != null) {
+            String lowerTheme = theme.toLowerCase();
+            
+            // Regular SLAM Meet인 경우
+            if (lowerTheme.contains("regular") && lowerTheme.contains("slam") && lowerTheme.contains("meet")) {
+                event.setEventType(EventType.REGULAR_MEET);
+                event.setProductType("Membership");
+            } 
+            // 그 외 모든 테마는 Special Event
+            else {
+                event.setEventType(EventType.SPECIAL_EVENT);
+                event.setProductType("Ticket");
+            }
+        } else {
+            // Theme이 없으면 기본값
+            event.setEventType(EventType.REGULAR_MEET);
+            event.setProductType("Membership");
         }
     }
 

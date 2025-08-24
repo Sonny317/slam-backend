@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors; // ✅ Collectors 임포트
 
 @Service
@@ -204,5 +206,32 @@ public class MembershipService {
         // 거절 알림 생성
         User user = application.getUser();
         notificationService.createMembershipNotification(user.getEmail(), application.getSelectedBranch(), false);
+    }
+
+    // ✅ 추가: 멤버십 가격 정보를 제공하는 메소드
+    @Transactional(readOnly = true)
+    public Map<String, Object> getMembershipPricing(String branch) {
+        Map<String, Object> pricing = new HashMap<>();
+        
+        // 현재 멤버 수 조회
+        long currentMembers = userMembershipRepository.countByBranchNameIgnoreCaseAndStatusIgnoreCase(branch, "ACTIVE");
+        
+        // 기본 가격 설정 (얼리버드 기준: 20명, 얼리버드 가격: 800, 정가: 900)
+        int earlyBirdCap = 20;
+        int earlyBirdPrice = 800;
+        int regularPrice = 900;
+        
+        // 현재 가격 결정
+        int currentPrice = currentMembers < earlyBirdCap ? earlyBirdPrice : regularPrice;
+        
+        pricing.put("currentMembers", currentMembers);
+        pricing.put("earlyBirdCap", earlyBirdCap);
+        pricing.put("earlyBirdPrice", earlyBirdPrice);
+        pricing.put("regularPrice", regularPrice);
+        pricing.put("currentPrice", currentPrice);
+        pricing.put("isEarlyBirdActive", currentMembers < earlyBirdCap);
+        pricing.put("totalCapacity", 80); // 총 정원
+        
+        return pricing;
     }
 }
