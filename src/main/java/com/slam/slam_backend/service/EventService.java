@@ -89,24 +89,35 @@ public class EventService {
     }
     
     private boolean canUserJoinForFree(User user, Event event) {
+        System.out.println("🔍 canUserJoinForFree Debug - User: " + user.getEmail());
+        System.out.println("🔍 canUserJoinForFree Debug - User Role: " + user.getRole());
+        System.out.println("🔍 canUserJoinForFree Debug - User MembershipType: " + user.getMembershipType());
+        System.out.println("🔍 canUserJoinForFree Debug - Event Type: " + event.getEventType());
+        System.out.println("🔍 canUserJoinForFree Debug - Event Sequence: " + event.getEventSequence());
+        
         // ✅ Admin/Staff/President는 모든 이벤트에 무료 참석 가능
         if (user.getRole() == UserRole.ADMIN || 
             user.getRole() == UserRole.STAFF || 
             user.getRole() == UserRole.PRESIDENT || 
             user.getRole() == UserRole.LEADER) {
+            System.out.println("🔍 canUserJoinForFree Debug - Admin/Staff/President/Leader - returning true");
             return true;
         }
         
         // Special Event는 일반 사용자에게는 항상 결제 필요
         if (event.getEventType() == EventType.SPECIAL_EVENT) {
+            System.out.println("🔍 canUserJoinForFree Debug - Special Event - returning false");
             return false;
         }
         
         // Regular Meet는 멤버십 타입에 따라 결정
         if (event.getEventType() == EventType.REGULAR_MEET && event.getEventSequence() != null) {
-            return user.getMembershipType().canJoinEvent(event.getEventSequence());
+            boolean canJoin = user.getMembershipType() != null && user.getMembershipType().canJoinEvent(event.getEventSequence());
+            System.out.println("🔍 canUserJoinForFree Debug - Regular Meet - canJoin: " + canJoin);
+            return canJoin;
         }
         
+        System.out.println("🔍 canUserJoinForFree Debug - Default case - returning false");
         return false;
     }
 
@@ -149,11 +160,32 @@ public class EventService {
         newEvent.setCurrentAttendees(0);
         newEvent.setArchived(false);
         
+        // ✅ 디버깅: 이벤트 생성 시 은행 정보 확인
+        System.out.println("🔍 EventService.createEvent Debug - Bank Account: " + eventDTO.getBankAccount());
+        System.out.println("🔍 EventService.createEvent Debug - Bank Name: " + eventDTO.getBankName());
+        System.out.println("🔍 EventService.createEvent Debug - Account Name: " + eventDTO.getAccountName());
+        System.out.println("🔍 EventService.createEvent Debug - After toEntity - Bank Name: " + newEvent.getBankName());
+        System.out.println("🔍 EventService.createEvent Debug - After toEntity - Account Name: " + newEvent.getAccountName());
+        
         // ✅ Theme 기반으로 EventType과 ProductType 자동 설정
         autoSetEventTypeFromTheme(newEvent);
         
+        // ✅ event_sequence 자동 생성 (REGULAR_MEET인 경우에만)
+        if (newEvent.getEventType() == EventType.REGULAR_MEET) {
+            Integer nextSequence = getNextEventSequence(newEvent.getBranch());
+            newEvent.setEventSequence(nextSequence);
+            System.out.println("🔍 EventService.createEvent Debug - Auto-generated event_sequence: " + nextSequence + " for branch: " + newEvent.getBranch());
+        }
+        
         Event savedEvent = eventRepository.save(newEvent);
         return EventDTO.fromEntity(savedEvent);
+    }
+    
+    // ✅ 다음 event_sequence 번호를 가져오는 메서드
+    private Integer getNextEventSequence(String branch) {
+        // 해당 브랜치의 가장 큰 event_sequence를 찾아서 +1
+        Integer maxSequence = eventRepository.findMaxEventSequenceByBranch(branch);
+        return (maxSequence != null) ? maxSequence + 1 : 1;
     }
     
     private void autoSetEventTypeFromTheme(Event event) {
@@ -222,7 +254,16 @@ public class EventService {
         existingEvent.setCapacityWarningThreshold(eventDTO.getCapacityWarningThreshold());
         existingEvent.setShowCapacityWarning(eventDTO.getShowCapacityWarning());
         existingEvent.setEndTime(eventDTO.getEndTime());
+        System.out.println("🔍 EventService.updateEvent Debug - Bank Account: " + eventDTO.getBankAccount());
+        System.out.println("🔍 EventService.updateEvent Debug - Bank Name: " + eventDTO.getBankName());
+        System.out.println("🔍 EventService.updateEvent Debug - Account Name: " + eventDTO.getAccountName());
+        
         existingEvent.setBankAccount(eventDTO.getBankAccount());
+        existingEvent.setBankName(eventDTO.getBankName());
+        existingEvent.setAccountName(eventDTO.getAccountName());
+        
+        System.out.println("🔍 EventService.updateEvent Debug - After setting - Bank Name: " + existingEvent.getBankName());
+        System.out.println("🔍 EventService.updateEvent Debug - After setting - Account Name: " + existingEvent.getAccountName());
 
         // ✅ Theme 변경 시 EventType과 ProductType 자동 재설정
         autoSetEventTypeFromTheme(existingEvent);

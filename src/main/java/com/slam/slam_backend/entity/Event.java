@@ -63,6 +63,8 @@ public class Event {
 
     // ✅ 계좌 정보
     private String bankAccount; // 계좌 번호
+    private String bankName; // 은행명
+    private String accountName; // 계좌명
 
     // ✅ 이벤트 타입 구분
     @Enumerated(EnumType.STRING)
