@@ -4,6 +4,7 @@ import com.slam.slam_backend.dto.MembershipRequest;
 import com.slam.slam_backend.entity.MembershipApplication;
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.UserStatus;
+import com.slam.slam_backend.entity.MembershipType; // ✅ MembershipType enum import 추가
 import com.slam.slam_backend.repository.MembershipApplicationRepository;
 import com.slam.slam_backend.repository.UserRepository;
 import com.slam.slam_backend.entity.UserMembership; // ✅ 임포트 추가
@@ -220,8 +221,11 @@ public class MembershipService {
             user.setMajor(application.getMajor());
         }
         
-        // 5. ✅ 사용자 상태를 ACTIVE_MEMBER로 변경
+        // 5. ✅ 사용자 상태를 ACTIVE_MEMBER로 변경하고 membershipType 설정
         user.setStatus(UserStatus.ACTIVE_MEMBER);
+        
+        // ✅ 멤버십 타입 설정 (Regular Meet 참석 가능하도록)
+        user.setMembershipType(MembershipType.FULL_SEMESTER); 
         
         userRepository.save(user);
         
@@ -306,15 +310,20 @@ public class MembershipService {
             }
         }
         
+        // ✅ 얼리버드 활성화 여부 결정: 얼리버드 가격이 설정되어 있고, 현재 멤버 수가 얼리버드 제한보다 적을 때만 활성화
+        boolean isEarlyBirdActive = latestEvent != null && 
+                                   latestEvent.getEarlyBirdPrice() != null && 
+                                   currentMembers < earlyBirdCap;
+        
         // 현재 가격 결정
-        int currentPrice = currentMembers < earlyBirdCap ? earlyBirdPrice : regularPrice;
+        int currentPrice = isEarlyBirdActive ? earlyBirdPrice : regularPrice;
         
         pricing.put("currentMembers", currentMembers);
         pricing.put("earlyBirdCap", earlyBirdCap);
         pricing.put("earlyBirdPrice", earlyBirdPrice);
         pricing.put("regularPrice", regularPrice);
         pricing.put("currentPrice", currentPrice);
-        pricing.put("isEarlyBirdActive", currentMembers < earlyBirdCap);
+        pricing.put("isEarlyBirdActive", isEarlyBirdActive);
         pricing.put("totalCapacity", totalCapacity);
         pricing.put("earlyBirdDeadline", earlyBirdDeadline);
         pricing.put("regularDeadline", regularDeadline);
@@ -322,6 +331,35 @@ public class MembershipService {
         // ✅ Total Value 계산 (Regular Price + 추가 혜택 가치)
         int totalValue = regularPrice + 600; // Regular Price + 600 NTD (추가 혜택 가치)
         pricing.put("totalValue", totalValue);
+        
+        // ✅ 이벤트의 은행 정보 추가
+        System.out.println("🔍 Bank Account Debug - Latest Event: " + (latestEvent != null ? latestEvent.getId() : "null"));
+        if (latestEvent != null) {
+            System.out.println("🔍 Bank Account Debug - Event Bank Account: " + latestEvent.getBankAccount());
+            System.out.println("🔍 Bank Account Debug - Event Bank Name: '" + latestEvent.getBankName() + "' (length: " + (latestEvent.getBankName() != null ? latestEvent.getBankName().length() : "null") + ")");
+            System.out.println("🔍 Bank Account Debug - Event Account Name: '" + latestEvent.getAccountName() + "' (length: " + (latestEvent.getAccountName() != null ? latestEvent.getAccountName().length() : "null") + ")");
+            System.out.println("🔍 Bank Account Debug - Event Bank Name is null: " + (latestEvent.getBankName() == null));
+            System.out.println("🔍 Bank Account Debug - Event Bank Name is empty: " + (latestEvent.getBankName() != null && latestEvent.getBankName().trim().isEmpty()));
+        }
+        
+        if (latestEvent != null && latestEvent.getBankAccount() != null) {
+            // 이벤트에서 은행명과 계좌명이 설정되어 있으면 사용, 없으면 기본값 사용
+            String bankName = latestEvent.getBankName() != null && !latestEvent.getBankName().trim().isEmpty() 
+                ? latestEvent.getBankName() 
+                : getDefaultBankName(branch);
+            String accountName = latestEvent.getAccountName() != null && !latestEvent.getAccountName().trim().isEmpty() 
+                ? latestEvent.getAccountName() 
+                : getDefaultAccountName(branch);
+            
+            String combinedBankInfo = bankName + " - " + latestEvent.getBankAccount() + " - " + accountName;
+            System.out.println("🔍 Bank Account Debug - Combined bank info: " + combinedBankInfo);
+            pricing.put("bankAccount", combinedBankInfo);
+        } else {
+            // 기본 은행 정보 (지부별)
+            String defaultBankAccount = getDefaultBankAccount(branch);
+            System.out.println("🔍 Bank Account Debug - Using default bank account: " + defaultBankAccount);
+            pricing.put("bankAccount", defaultBankAccount);
+        }
         
         return pricing;
     }
@@ -342,5 +380,47 @@ public class MembershipService {
         System.out.println("   - Has Pending Ticket: " + hasPending);
         
         return hasPending;
+    }
+    
+    // ✅ 지부별 기본 은행 정보 반환
+    private String getDefaultBankAccount(String branch) {
+        switch (branch.toUpperCase()) {
+            case "NCCU":
+                return "(822) Cathay United Bank - 123-456-7890 - SLAM NCCU";
+            case "NTU":
+                return "(700) China Post - 098-765-4321 - SLAM NTU";
+            case "TAIPEI":
+                return "(812) Taiwan Cooperative Bank - 555-123-9876 - SLAM TAIPEI";
+            default:
+                return "(822) Cathay United Bank - 123-456-7890 - SLAM NCCU";
+        }
+    }
+    
+    // ✅ 지부별 기본 은행명 반환
+    private String getDefaultBankName(String branch) {
+        switch (branch.toUpperCase()) {
+            case "NCCU":
+                return "(822) Cathay United Bank";
+            case "NTU":
+                return "(700) China Post";
+            case "TAIPEI":
+                return "(812) Taiwan Cooperative Bank";
+            default:
+                return "(822) Cathay United Bank";
+        }
+    }
+    
+    // ✅ 지부별 기본 계좌명 반환
+    private String getDefaultAccountName(String branch) {
+        switch (branch.toUpperCase()) {
+            case "NCCU":
+                return "SLAM NCCU";
+            case "NTU":
+                return "SLAM NTU";
+            case "TAIPEI":
+                return "SLAM TAIPEI";
+            default:
+                return "SLAM NCCU";
+        }
     }
 }

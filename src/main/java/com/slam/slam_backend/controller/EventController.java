@@ -227,6 +227,11 @@ public class EventController {
                     .showCapacityWarning(eventDTO.getShowCapacityWarning())
                     .endTime(eventDTO.getEndTime())
                     .bankAccount(eventDTO.getBankAccount())
+                    .bankName(eventDTO.getBankName())
+                    .accountName(eventDTO.getAccountName())
+                    .eventType(eventDTO.getEventType())
+                    .eventSequence(eventDTO.getEventSequence())
+                    .productType(eventDTO.getProductType())
                     .build();
             
             EventDTO updatedEvent = eventService.updateEvent(eventId, eventDTO);
