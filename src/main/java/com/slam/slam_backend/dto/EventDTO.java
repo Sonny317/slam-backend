@@ -36,6 +36,8 @@ public class EventDTO {
     private Boolean showCapacityWarning;
     private String endTime;
     private String bankAccount;
+    private String bankName;
+    private String accountName;
     
     // ✅ 이벤트 타입 관련
     private EventType eventType;
@@ -90,6 +92,8 @@ public class EventDTO {
                 .showCapacityWarning(event.getShowCapacityWarning())
                 .endTime(event.getEndTime())
                 .bankAccount(event.getBankAccount())
+                .bankName(event.getBankName())
+                .accountName(event.getAccountName())
                 .eventType(event.getEventType())
                 .eventSequence(event.getEventSequence())
                 .productType(event.getProductType())
@@ -121,6 +125,8 @@ public class EventDTO {
         event.setShowCapacityWarning(this.showCapacityWarning);
         event.setEndTime(this.endTime);
         event.setBankAccount(this.bankAccount);
+        event.setBankName(this.bankName);
+        event.setAccountName(this.accountName);
         event.setEventType(this.eventType);
         event.setEventSequence(this.eventSequence);
         event.setProductType(this.productType);
