@@ -9,7 +9,9 @@ ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS game_id VARCHAR(255);
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS rating INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS engagement INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS difficulty INTEGER;
-ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS comment TEXT;
+-- 기존 comment 컬럼이 있다면 삭제하고 다시 생성
+ALTER TABLE game_feedbacks DROP COLUMN IF EXISTS comment;
+ALTER TABLE game_feedbacks ADD COLUMN comment TEXT;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_participants INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_duration INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(100);
