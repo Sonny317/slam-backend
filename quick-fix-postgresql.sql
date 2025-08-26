@@ -14,7 +14,9 @@ ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_participants INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_duration INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(100);
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS organizer_notes TEXT;
+-- 기존 organizer_notes 컬럼이 있다면 삭제하고 다시 생성
+ALTER TABLE game_feedbacks DROP COLUMN IF EXISTS organizer_notes;
+ALTER TABLE game_feedbacks ADD COLUMN organizer_notes TEXT;
 
 -- events 테이블에 필요한 컬럼들 추가 (없는 경우)
 ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) DEFAULT 'REGULAR_MEET';
