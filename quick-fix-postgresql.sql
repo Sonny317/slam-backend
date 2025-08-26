@@ -8,6 +8,7 @@ ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_participants INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_duration INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(100);
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS organizer_notes TEXT;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 -- events 테이블에 필요한 컬럼들 추가 (없는 경우)
 ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) DEFAULT 'REGULAR_MEET';
@@ -45,12 +46,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- 확인용 쿼리
-SELECT 'game_feedbacks columns' as info, 
-       column_name, 
-       data_type 
-FROM information_schema.columns 
-WHERE table_name = 'game_feedbacks' 
-AND column_name IN ('actual_participants', 'actual_duration', 'submitted_by', 'organizer_notes');
+
 
 -- 완료 메시지
 DO $$
