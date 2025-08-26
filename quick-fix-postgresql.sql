@@ -3,12 +3,18 @@
 -- game_feedbacks 테이블 누락 컬럼 추가
 -- =====================================================
 
--- game_feedbacks 테이블에 누락된 컬럼들 추가
+-- game_feedbacks 테이블에 누락된 컬럼들 추가 (모든 필드)
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS event_id BIGINT;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS game_id VARCHAR(255);
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS rating INTEGER;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS engagement INTEGER;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS difficulty INTEGER;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS comment TEXT;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_participants INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_duration INTEGER;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(100);
-ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS organizer_notes TEXT;
 ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS organizer_notes TEXT;
 
 -- events 테이블에 필요한 컬럼들 추가 (없는 경우)
 ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) DEFAULT 'REGULAR_MEET';
@@ -46,7 +52,12 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- 확인용 쿼리
-
+SELECT 'game_feedbacks columns' as info, 
+       column_name, 
+       data_type 
+FROM information_schema.columns 
+WHERE table_name = 'game_feedbacks' 
+ORDER BY column_name;
 
 -- 완료 메시지
 DO $$
