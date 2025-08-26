@@ -2,6 +2,7 @@ package com.slam.slam_backend.dto;
 
 import com.slam.slam_backend.entity.User;
 import com.slam.slam_backend.entity.UserMembership;
+import com.slam.slam_backend.entity.UserProfile; // UserProfile 임포트
 import lombok.Builder;
 import lombok.Getter;
 
@@ -15,12 +16,12 @@ public class MyPageResponse {
     private Long userId;
     private String name;
     private String email;
-    private String bio;
+    private String role;
     private String profileImage;
-    private String role; // ✅ role 필드 추가
-    private List<String> memberships; // ✅ String에서 List<String>으로 변경
-    
-    // ✅ 멤버십 관련 정보 (Single Source of Truth에서 가져옴)
+    private List<String> memberships;
+
+    // --- UserProfile에서 가져오는 정보 ---
+    private String bio;
     private String phone;
     private String studentId;
     private String major;
@@ -35,56 +36,53 @@ public class MyPageResponse {
     private String industry;
     private String networkingGoal;
     private String otherNetworkingGoal;
-    // 나중에 게시글, 댓글 목록도 여기에 추가할 수 있습니다.
+    private String interests;
+    private String spokenLanguages;
+    private String desiredLanguages;
 
-    /// User 엔티티를 MyPageResponse DTO로 변환하는 정적 메소드
+
+    // User 엔티티를 MyPageResponse DTO로 변환하는 정적 메소드
     public static MyPageResponse fromEntity(User user) {
-        // ✅ UserMembership 컬렉션에서만 멤버십 정보를 가져옵니다 (중복 방지)
-        List<String> memberships = new ArrayList<>();
-        
-        // 디버그 로그 추가
-        System.out.println("MyPageResponse - User ID: " + user.getId());
-        System.out.println("MyPageResponse - User memberships collection size: " + user.getMemberships().size());
-        
-        // UserMembership 컬렉션에서 ACTIVE 상태의 멤버십만 가져오기
-        if (!user.getMemberships().isEmpty()) {
-            List<String> activeMemberships = user.getMemberships().stream()
-                    .filter(m -> m != null && "ACTIVE".equals(m.getStatus()) && m.getBranchName() != null && !m.getBranchName().isEmpty())
+        // UserProfile이 null인 경우를 대비하여 빈 객체 생성
+        UserProfile profile = user.getUserProfile() != null ? user.getUserProfile() : new UserProfile();
+
+        List<String> activeMemberships = new ArrayList<>();
+        if (user.getMemberships() != null && !user.getMemberships().isEmpty()) {
+            activeMemberships = user.getMemberships().stream()
+                    .filter(m -> "ACTIVE".equalsIgnoreCase(m.getStatus()))
                     .map(UserMembership::getBranchName)
-                    .distinct() // 중복 제거
+                    .distinct()
                     .collect(Collectors.toList());
-            
-            System.out.println("MyPageResponse - Active memberships from collection: " + activeMemberships);
-            memberships.addAll(activeMemberships);
-        } else {
-            System.out.println("MyPageResponse - User has no memberships collection");
         }
-        
-        System.out.println("MyPageResponse - Final memberships: " + memberships);
-        
+
         return MyPageResponse.builder()
+                // --- User 엔티티에서 직접 가져오는 정보 ---
                 .userId(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
-                .bio(user.getBio())
-                .profileImage(user.getProfileImage())
                 .role(user.getRole().name())
-                .memberships(memberships)
-                // ✅ 멤버십 관련 정보 포함 (Single Source of Truth)
-                .phone(user.getPhone())
-                .studentId(user.getStudentId())
-                .major(user.getMajor())
-                .nationality(user.getNationality())
-                .userType(user.getUserType())
-                .otherMajor(user.getOtherMajor())
-                .professionalStatus(user.getProfessionalStatus())
-                .country(user.getCountry())
-                .foodAllergies(user.getFoodAllergies())
-                .paymentMethod(user.getPaymentMethod())
-                .bankLast5(user.getBankLast5())
-                .industry(user.getIndustry())
-                .networkingGoal(user.getNetworkingGoal())
-                .otherNetworkingGoal(user.getOtherNetworkingGoal())
+                .profileImage(user.getProfileImage())
+                .memberships(activeMemberships)
+
+                // --- UserProfile 엔티티에서 가져오는 정보 ---
+                .bio(profile.getBio())
+                .phone(profile.getPhone())
+                .studentId(profile.getStudentId())
+                .major(profile.getMajor())
+                .nationality(profile.getNationality())
+                .userType(profile.getUserType())
+                .otherMajor(profile.getOtherMajor())
+                .professionalStatus(profile.getProfessionalStatus())
+                .country(profile.getCountry())
+                .foodAllergies(profile.getFoodAllergies())
+                .paymentMethod(profile.getPaymentMethod())
+                .bankLast5(profile.getBankLast5())
+                .industry(profile.getIndustry())
+                .networkingGoal(profile.getNetworkingGoal())
+                .otherNetworkingGoal(profile.getOtherNetworkingGoal())
+                .interests(profile.getInterests())
+                .spokenLanguages(profile.getSpokenLanguages())
+                .desiredLanguages(profile.getDesiredLanguages())
                 .build();
     }
 }

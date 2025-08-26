@@ -91,8 +91,9 @@ public class EventService {
     private boolean canUserJoinForFree(User user, Event event) {
         System.out.println("🔍 canUserJoinForFree Debug - User: " + user.getEmail());
         System.out.println("🔍 canUserJoinForFree Debug - User Role: " + user.getRole());
-        System.out.println("🔍 canUserJoinForFree Debug - User MembershipType: " + user.getMembershipType());
+        System.out.println("🔍 canUserJoinForFree Debug - User Memberships: " + user.getMemberships());
         System.out.println("🔍 canUserJoinForFree Debug - Event Type: " + event.getEventType());
+        System.out.println("🔍 canUserJoinForFree Debug - Event Branch: " + event.getBranch());
         System.out.println("🔍 canUserJoinForFree Debug - Event Sequence: " + event.getEventSequence());
         
         // ✅ Admin/Staff/President는 모든 이벤트에 무료 참석 가능
@@ -110,11 +111,15 @@ public class EventService {
             return false;
         }
         
-        // Regular Meet는 멤버십 타입에 따라 결정
-        if (event.getEventType() == EventType.REGULAR_MEET && event.getEventSequence() != null) {
-            boolean canJoin = user.getMembershipType() != null && user.getMembershipType().canJoinEvent(event.getEventSequence());
-            System.out.println("🔍 canUserJoinForFree Debug - Regular Meet - canJoin: " + canJoin);
-            return canJoin;
+        // Regular Meet는 해당 지부의 활성 멤버십이 있는지 확인
+        if (event.getEventType() == EventType.REGULAR_MEET && event.getBranch() != null) {
+            boolean hasActiveMembership = user.getMemberships().stream()
+                .anyMatch(membership -> 
+                    membership.getBranchName().equals(event.getBranch()) && 
+                    "ACTIVE".equals(membership.getStatus())
+                );
+            System.out.println("🔍 canUserJoinForFree Debug - Regular Meet - hasActiveMembership: " + hasActiveMembership);
+            return hasActiveMembership;
         }
         
         System.out.println("🔍 canUserJoinForFree Debug - Default case - returning false");

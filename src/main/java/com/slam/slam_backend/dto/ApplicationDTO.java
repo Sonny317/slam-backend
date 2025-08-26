@@ -12,6 +12,10 @@ public class ApplicationDTO {
     private String userName;
     private String userEmail;
     private String selectedBranch;
+    private String status;
+    private LocalDateTime createdAt;
+    
+    // 프로필 정보는 UserProfile에서 가져옴
     private String userType;
     private String studentId;
     private String major;
@@ -22,27 +26,29 @@ public class ApplicationDTO {
     private String foodAllergies;
     private String paymentMethod;
     private String bankLast5;
-    private String status;
-    private LocalDateTime createdAt;
 
     public static ApplicationDTO fromEntity(MembershipApplication entity) {
+        // UserProfile에서 프로필 정보 가져오기
+        var userProfile = entity.getUser().getUserProfile();
+        
         return ApplicationDTO.builder()
                 .id(entity.getId())
-                .userName(entity.getUser().getName()) // 복잡한 User 객체 대신 이름만 추출
-                .userEmail(entity.getUser().getEmail()) // 이메일만 추출
+                .userName(entity.getUser().getName())
+                .userEmail(entity.getUser().getEmail())
                 .selectedBranch(entity.getSelectedBranch())
-                .userType(entity.getUserType())
-                .studentId(entity.getStudentId())
-                .major(entity.getMajor())
-                .otherMajor(entity.getOtherMajor())
-                .professionalStatus(entity.getProfessionalStatus())
-                .country(entity.getCountry())
-                .phone(entity.getPhone())
-                .foodAllergies(entity.getFoodAllergies())
-                .paymentMethod(entity.getPaymentMethod())
-                .bankLast5(entity.getBankLast5())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
+                // UserProfile에서 프로필 정보 가져오기 (null 체크)
+                .userType(userProfile != null ? userProfile.getUserType() : null)
+                .studentId(userProfile != null ? userProfile.getStudentId() : null)
+                .major(userProfile != null ? userProfile.getMajor() : null)
+                .otherMajor(userProfile != null ? userProfile.getOtherMajor() : null)
+                .professionalStatus(userProfile != null ? userProfile.getProfessionalStatus() : null)
+                .country(userProfile != null ? userProfile.getCountry() : null)
+                .phone(userProfile != null ? userProfile.getPhone() : null)
+                .foodAllergies(userProfile != null ? userProfile.getFoodAllergies() : null)
+                .paymentMethod(userProfile != null ? userProfile.getPaymentMethod() : null)
+                .bankLast5(userProfile != null ? userProfile.getBankLast5() : null)
                 .build();
     }
 }
