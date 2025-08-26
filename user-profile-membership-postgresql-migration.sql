@@ -137,40 +137,57 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS product_type VARCHAR(20) DEFAULT 'ME
 ALTER TABLE events ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255);
 ALTER TABLE events ADD COLUMN IF NOT EXISTS account_name VARCHAR(255);
 
--- 7단계: 기존 이벤트들의 event_sequence 설정 (REGULAR_MEET인 경우)
-UPDATE events 
-SET event_sequence = (
-    SELECT COALESCE(MAX(e2.event_sequence), 0) + 1
-    FROM events e2 
-    WHERE e2.branch = events.branch 
-    AND e2.event_type = 'REGULAR_MEET'
-    AND e2.id < events.id
-)
-WHERE event_type = 'REGULAR_MEET' 
-AND event_sequence IS NULL;
+-- 6-1단계: game_feedbacks 테이블에 필요한 컬럼들 추가 (없는 경우)
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_participants INTEGER;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS actual_duration INTEGER;
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(100);
+ALTER TABLE game_feedbacks ADD COLUMN IF NOT EXISTS organizer_notes TEXT;
 
--- 8단계: 기존 이벤트들의 product_type 설정
+-- 7단계: 기존 이벤트들의 기본값 설정
+-- event_type이 NULL인 경우 기본값 설정
 UPDATE events 
-SET product_type = CASE 
-    WHEN theme ILIKE '%outing%' OR theme ILIKE '%special%' OR theme ILIKE '%event%' THEN 'TICKET'
-    ELSE 'MEMBERSHIP'
-END
-WHERE product_type IS NULL;
-
--- 9단계: 기존 이벤트들의 event_type 설정
-UPDATE events 
-SET event_type = CASE 
-    WHEN theme ILIKE '%regular%' OR theme ILIKE '%meet%' THEN 'REGULAR_MEET'
-    ELSE 'SPECIAL_EVENT'
-END
+SET event_type = 'REGULAR_MEET'
 WHERE event_type IS NULL;
 
--- 10단계: 인덱스 생성 (성능 최적화)
+-- product_type이 NULL인 경우 기본값 설정
+UPDATE events 
+SET product_type = 'MEMBERSHIP'
+WHERE product_type IS NULL;
+
+-- 8단계: 기존 이벤트들의 product_type 설정 (theme 기반)
+UPDATE events 
+SET product_type = 'TICKET'
+WHERE (theme ILIKE '%outing%' OR theme ILIKE '%special%' OR theme ILIKE '%event%')
+AND product_type = 'MEMBERSHIP';
+
+-- 9단계: 기존 이벤트들의 event_type 설정 (theme 기반)
+UPDATE events 
+SET event_type = 'SPECIAL_EVENT'
+WHERE (theme ILIKE '%outing%' OR theme ILIKE '%special%' OR theme ILIKE '%event%')
+AND event_type = 'REGULAR_MEET';
+
+-- 10단계: event_sequence 설정 (단순화된 버전)
+-- 각 branch별로 REGULAR_MEET 이벤트들의 순서를 설정
+WITH numbered_events AS (
+    SELECT 
+        id,
+        branch,
+        ROW_NUMBER() OVER (PARTITION BY branch ORDER BY event_date_time) as seq_num
+    FROM events 
+    WHERE event_type = 'REGULAR_MEET'
+)
+UPDATE events 
+SET event_sequence = numbered_events.seq_num
+FROM numbered_events
+WHERE events.id = numbered_events.id
+AND events.event_sequence IS NULL;
+
+-- 11단계: 인덱스 생성 (성능 최적화)
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_events_branch_event_type ON events(branch, event_type);
 CREATE INDEX IF NOT EXISTS idx_events_branch_event_sequence ON events(branch, event_sequence);
 
--- 11단계: 확인용 쿼리
+-- 12단계: 확인용 쿼리
 -- 마이그레이션 결과 확인
 SELECT 'Users count' as table_name, COUNT(*) as count FROM users
 UNION ALL
