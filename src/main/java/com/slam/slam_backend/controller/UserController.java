@@ -290,7 +290,7 @@ public class UserController {
         payload.put("name", user.getName());
         payload.put("email", user.getEmail());
         payload.put("profileImage", user.getProfileImage()); // may be null
-        payload.put("bio", user.getBio()); // may be null
+        payload.put("bio", user.getUserProfile() != null ? user.getUserProfile().getBio() : null); // UserProfile에서 가져오기
         payload.put("posts", uniquePosts);
         payload.put("comments", uniqueComments);
         return ResponseEntity.ok(payload);

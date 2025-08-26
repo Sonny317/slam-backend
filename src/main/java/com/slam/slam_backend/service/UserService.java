@@ -4,6 +4,7 @@ import com.slam.slam_backend.dto.RegisterRequest;
 import com.slam.slam_backend.dto.UserUpdateRequest;
 import com.slam.slam_backend.entity.PasswordResetToken;
 import com.slam.slam_backend.entity.User;
+import com.slam.slam_backend.entity.UserProfile;
 import com.slam.slam_backend.entity.UserRole;
 import com.slam.slam_backend.entity.UserStatus;
 import com.slam.slam_backend.entity.VerificationCode;
@@ -17,7 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import java.util.regex.Pattern; // ✅ Pattern 임포트 추가
+import java.util.regex.Pattern;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,11 +37,11 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final VerificationCodeRepository verificationCodeRepository;
-    private final PasswordResetTokenRepository passwordResetTokenRepository; // ✅ Repository 주입
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
-    
+
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
 
@@ -50,7 +51,6 @@ public class UserService {
             throw new IllegalArgumentException("Email already registered");
         }
         String code = generateRandomCode();
-        // 기존 레코드가 있으면 업데이트, 없으면 새로 생성하여 저장 (유니크 제약 위반 방지)
         verificationCodeRepository.findByEmail(email)
                 .ifPresentOrElse(existing -> {
                     existing.setCode(code);
@@ -65,42 +65,48 @@ public class UserService {
     }
 
     @Transactional
-    public User registerUser(RegisterRequest request) {
-        VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Verification code not issued or expired"));
+public User registerUser(RegisterRequest request) {
+    // 1. 인증코드 검증 및 비밀번호 유효성 검사 (기존과 동일)
+    VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
+            .orElseThrow(() -> new IllegalArgumentException("Verification code not issued or expired"));
 
-        if (storedCode.getExpiryDate().isBefore(LocalDateTime.now())) {
-            verificationCodeRepository.delete(storedCode);
-            throw new IllegalArgumentException("Verification code expired");
-        }
-
-        if (!storedCode.getCode().equals(request.getCode())) {
-            throw new IllegalArgumentException("Invalid verification code");
-        }
-
-        // --- ✅ 비밀번호 규칙 검증 로직 추가 ---
-        validatePassword(request.getPassword());
-
-        User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .interests(request.getInterests())
-                .spokenLanguages(request.getSpokenLanguages())
-                .desiredLanguages(request.getDesiredLanguages())
-                .role(UserRole.MEMBER)
-                .status(UserStatus.PRE_MEMBER)
-                .build();
-
+    if (storedCode.getExpiryDate().isBefore(LocalDateTime.now())) {
         verificationCodeRepository.delete(storedCode);
-        return userRepository.save(user);
-
-
+        throw new IllegalArgumentException("Verification code expired");
     }
 
-    // ✅ 비밀번호 규칙을 검사하는 private 메소드
+    if (!storedCode.getCode().equals(request.getCode())) {
+        throw new IllegalArgumentException("Invalid verification code");
+    }
+
+    validatePassword(request.getPassword());
+
+    // 2. User 객체 생성 (핵심 정보만)
+    User user = User.builder()
+            .name(request.getName())
+            .email(request.getEmail())
+            .password(passwordEncoder.encode(request.getPassword()))
+            .role(UserRole.MEMBER)
+            .status(UserStatus.PRE_MEMBER)
+            .build();
+
+    // 3. UserProfile 객체 생성 및 관계 설정
+    UserProfile userProfile = UserProfile.builder()
+            .user(user)
+            .build();
+    
+    // 4. User와 UserProfile의 양방향 관계 설정
+    user.setUserProfile(userProfile);
+
+    verificationCodeRepository.delete(storedCode);
+    
+    // 5. User를 저장합니다. Cascade 설정에 의해 UserProfile도 함께 저장됩니다.
+    return userRepository.save(user);
+}
+    
+    // (이하 나머지 코드는 이전과 동일합니다)
+
     private void validatePassword(String password) {
-        // 6자리 이상, 특수문자 포함
         String passwordRegex = "^(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{6,}$";
         if (!Pattern.matches(passwordRegex, password)) {
             throw new IllegalArgumentException("비밀번호는 특수문자를 포함하여 6자리 이상이어야 합니다.");
@@ -121,16 +127,22 @@ public class UserService {
         return String.valueOf(100000 + random.nextInt(900000));
     }
 
-    // ✅ 1. 자기소개만 업데이트하는 메소드
     @Transactional
     public User updateBio(String email, String newBio) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + email));
-        user.setBio(newBio);
+        
+        UserProfile userProfile = user.getUserProfile();
+        if (userProfile == null) {
+            userProfile = new UserProfile();
+            userProfile.setUser(user);
+            user.setUserProfile(userProfile);
+        }
+        userProfile.setBio(newBio);
+        
         return userRepository.save(user);
     }
 
-    // ✅ 2. 프로필 이미지만 업데이트하는 메소드
     @Transactional
     public User updateProfileImage(String email, MultipartFile newProfileImageFile) throws IOException {
         User user = userRepository.findByEmail(email)
@@ -140,13 +152,11 @@ public class UserService {
             throw new IllegalArgumentException("업데이트할 이미지 파일이 없습니다.");
         }
 
-        // 기존 이미지가 있다면 서버에서 파일 삭제
         if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
             Path oldImagePath = Paths.get(uploadDir, user.getProfileImage().replace("/images/", ""));
             Files.deleteIfExists(oldImagePath);
         }
 
-        // 새 이미지 저장
         String filename = UUID.randomUUID() + "_" + newProfileImageFile.getOriginalFilename();
         File directory = new File(uploadDir);
         if (!directory.exists()) {
@@ -159,28 +169,23 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // ✅ 추가: 비밀번호 재설정 요청 처리
     @Transactional
     public void createPasswordResetTokenForUser(String email) {
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
-            // 이메일이 존재하지 않아도, 보안을 위해 성공한 것처럼 보이게 아무 작업도 하지 않고 넘어갑니다.
             return;
         }
         String token = UUID.randomUUID().toString();
         PasswordResetToken myToken = new PasswordResetToken(user, token);
         passwordResetTokenRepository.save(myToken);
 
-        // 프론트엔드의 비밀번호 재설정 페이지 주소 (환경 변수 기반)
         String resetUrl = frontendBaseUrl + "/reset-password?token=" + token;
-
         String subject = "[SLAM] Password reset request";
         String text = "Click the link below to reset your password:\n\n" + resetUrl;
 
         emailService.sendEmail(user.getEmail(), subject, text);
     }
 
-    // ✅ 추가: 토큰을 이용한 비밀번호 변경
     @Transactional
     public void changePassword(String token, String newPassword) {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
@@ -194,11 +199,9 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        // 사용 완료된 토큰은 삭제
         passwordResetTokenRepository.delete(resetToken);
     }
 
-    // ✅ 마이페이지: 인증된 사용자의 비밀번호 변경
     @Transactional
     public void changePasswordForAuthenticatedUser(String email, String currentPassword, String newPassword) {
         User user = userRepository.findByEmail(email)
@@ -213,58 +216,54 @@ public class UserService {
         userRepository.save(user);
     }
 
-	    // ✅ 인증 코드 유효성 검증 메소드
-	    public boolean verifyVerificationCode(String email, String code) {
-	        return verificationCodeRepository.findByEmail(email)
-	                .map(stored -> {
-	                    if (stored.getExpiryDate().isBefore(LocalDateTime.now())) {
-	                        // 만료된 코드는 정리
-	                        verificationCodeRepository.delete(stored);
-	                        return false;
-	                    }
-	                    return stored.getCode().equals(code);
-	                })
-	                .orElse(false);
-	    }
+    public boolean verifyVerificationCode(String email, String code) {
+        return verificationCodeRepository.findByEmail(email)
+                .map(stored -> {
+                    if (stored.getExpiryDate().isBefore(LocalDateTime.now())) {
+                        verificationCodeRepository.delete(stored);
+                        return false;
+                    }
+                    return stored.getCode().equals(code);
+                })
+                .orElse(false);
+    }
 
-	    // ✅ 사용자 기본 정보 업데이트 메소드
-	    @Transactional
-	    public User updateUserInfo(String email, UserUpdateRequest request) {
-	        User user = userRepository.findByEmail(email)
-	                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + email));
+    @Transactional
+    public User updateUserInfo(String email, UserUpdateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + email));
 
-	        // 이름 업데이트 (필수)
-	        user.setName(request.getName());
+        user.setName(request.getName());
 
-	        // 선택적 정보 업데이트
-	        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
-	            user.setPhone(request.getPhone());
-	        }
+        UserProfile profile = user.getUserProfile();
+        if (profile == null) {
+            profile = new UserProfile();
+            profile.setUser(user);
+            user.setUserProfile(profile);
+        }
 
-	        if (request.getMajor() != null && !request.getMajor().trim().isEmpty()) {
-	            user.setMajor(request.getMajor());
-	        }
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            profile.setPhone(request.getPhone());
+        }
+        if (request.getMajor() != null && !request.getMajor().trim().isEmpty()) {
+            profile.setMajor(request.getMajor());
+        }
+        if (request.getStudentId() != null && !request.getStudentId().trim().isEmpty()) {
+            profile.setStudentId(request.getStudentId());
+        }
+        if (request.getBio() != null) {
+            profile.setBio(request.getBio());
+        }
+        if (request.getInterests() != null) {
+            profile.setInterests(request.getInterests());
+        }
+        if (request.getSpokenLanguages() != null) {
+            profile.setSpokenLanguages(request.getSpokenLanguages());
+        }
+        if (request.getDesiredLanguages() != null) {
+            profile.setDesiredLanguages(request.getDesiredLanguages());
+        }
 
-	        if (request.getStudentId() != null && !request.getStudentId().trim().isEmpty()) {
-	            user.setStudentId(request.getStudentId());
-	        }
-
-	        if (request.getBio() != null) {
-	            user.setBio(request.getBio());
-	        }
-
-	        if (request.getInterests() != null) {
-	            user.setInterests(request.getInterests());
-	        }
-
-	        if (request.getSpokenLanguages() != null) {
-	            user.setSpokenLanguages(request.getSpokenLanguages());
-	        }
-
-	        if (request.getDesiredLanguages() != null) {
-	            user.setDesiredLanguages(request.getDesiredLanguages());
-	        }
-
-	        return userRepository.save(user);
-	    }
+        return userRepository.save(user);
+    }
 }
