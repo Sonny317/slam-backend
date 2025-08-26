@@ -37,7 +37,7 @@ public class GameFeedback {
     @Column(nullable = false)
     private Integer difficulty; // 1-5 (난이도 적절성)
 
-    @Lob
+    @Column(columnDefinition = "TEXT")
     private String comment; // 텍스트 피드백
 
     @Column(nullable = false)
@@ -53,7 +53,7 @@ public class GameFeedback {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     // 인원 수 대비 점수 계산을 위한 메모 필드
-    @Lob
+    @Column(columnDefinition = "TEXT")
     private String organizerNotes; // 주최자 메모 (예: "인원이 많아서 시간이 오래 걸렸음", "소규모라 재미있었음")
 }
 
