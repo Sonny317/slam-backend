@@ -47,7 +47,8 @@ public class MembershipController {
         }
         MembershipApplication app = membershipService.findMyLatestApplication(authentication.getName());
         if (app == null) {
-            return ResponseEntity.status(404).body("No membership application found");
+            // 멤버십 신청이 없을 때는 빈 응답 반환 (404 대신)
+            return ResponseEntity.ok(Map.of("message", "No membership application found"));
         }
         return ResponseEntity.ok(ApplicationDTO.fromEntity(app));
     }
