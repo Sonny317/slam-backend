@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import com.slam.slam_backend.entity.UserRole;
 
 @RestController
 @RequiredArgsConstructor
@@ -55,13 +56,37 @@ public class GoogleAuthController {
             }
             
             // TODO: 실제 Google API 호출하여 액세스 토큰과 사용자 정보 가져오기
-            // 현재는 임시 응답
+            // 현재는 임시 사용자 정보 (실제로는 Google API에서 가져와야 함)
+            String email = "google.user@example.com"; // TODO: Google API에서 실제 이메일 가져오기
+            String name = "Google User"; // TODO: Google API에서 실제 이름 가져오기
+            
+            // 사용자가 존재하는지 확인
+            User existingUser = userRepository.findByEmail(email).orElse(null);
+            
+            if (existingUser == null) {
+                // 새 사용자 생성 (Google OAuth 사용자)
+                User newUser = new User();
+                newUser.setEmail(email);
+                newUser.setName(name);
+                newUser.setPassword(""); // Google OAuth 사용자는 비밀번호 없음
+                newUser.setRole(UserRole.MEMBER); // 기본 역할 설정
+                newUser.setProfileImage(null);
+                
+                existingUser = userRepository.save(newUser);
+            }
+            
+            // JWT 토큰 생성
+            String token = jwtTokenProvider.generateToken(existingUser.getEmail());
+            
             return ResponseEntity.ok(Map.of(
-                "message", "Google OAuth 콜백이 성공적으로 처리되었습니다.",
+                "message", "Google OAuth 로그인이 성공했습니다.",
                 "code", code,
                 "status", "success",
-                "token", "temp-jwt-token", // TODO: 실제 JWT 토큰 생성
-                "email", "temp@example.com" // TODO: 실제 사용자 이메일
+                "token", token,
+                "email", existingUser.getEmail(),
+                "name", existingUser.getName(),
+                "profileImage", existingUser.getProfileImage(),
+                "role", existingUser.getRole().name()
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Google authentication failed: " + e.getMessage()));
