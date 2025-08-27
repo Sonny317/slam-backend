@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import com.slam.slam_backend.entity.UserRole;
+import com.slam.slam_backend.entity.UserStatus;
+import com.slam.slam_backend.entity.MembershipType;
 
 @RestController
 @RequiredArgsConstructor
@@ -49,9 +51,14 @@ public class GoogleAuthController {
     @PostMapping("/api/auth/google/callback")
     public ResponseEntity<?> googleCallback(@RequestBody Map<String, String> request) {
         try {
+            System.out.println("=== Google OAuth Callback Debug ===");
+            System.out.println("Request body: " + request);
+            
             String code = request.get("code");
+            System.out.println("Authorization code: " + code);
             
             if (code == null || code.isEmpty()) {
+                System.out.println("Error: Authorization code is missing");
                 return ResponseEntity.badRequest().body(Map.of("error", "Authorization code is required"));
             }
             
@@ -59,26 +66,42 @@ public class GoogleAuthController {
             // 현재는 임시 사용자 정보 (실제로는 Google API에서 가져와야 함)
             String email = "google.user@example.com"; // TODO: Google API에서 실제 이메일 가져오기
             String name = "Google User"; // TODO: Google API에서 실제 이름 가져오기
+            String providerId = "google_provider_id"; // TODO: Google API에서 실제 공급자 ID 가져오기
+            
+            System.out.println("Processing user: " + email);
             
             // 사용자가 존재하는지 확인
             User existingUser = userRepository.findByEmail(email).orElse(null);
             
             if (existingUser == null) {
-                // 새 사용자 생성 (Google OAuth 사용자)
-                User newUser = new User();
-                newUser.setEmail(email);
-                newUser.setName(name);
-                newUser.setPassword(""); // Google OAuth 사용자는 비밀번호 없음
-                newUser.setRole(UserRole.MEMBER); // 기본 역할 설정
-                newUser.setProfileImage(null);
+                System.out.println("Creating new Google OAuth user: " + email);
+                // 새 사용자 생성 (Google OAuth 사용자) - Builder 패턴 사용
+                User newUser = User.builder()
+                    .email(email)
+                    .name(name)
+                    .password("") // Google OAuth 사용자는 비밀번호 없음
+                    .role(UserRole.MEMBER) // 기본 역할 설정
+                    .status(UserStatus.PRE_MEMBER) // 가회원 상태
+                    .membershipType(MembershipType.NONE) // 기본 멤버십 타입
+                    .profileImage(null)
+                    .provider("google")
+                    .providerId(providerId)
+                    .oauthId(providerId)
+                    .build();
+                
+                System.out.println("User object created with status: " + newUser.getStatus());
                 
                 existingUser = userRepository.save(newUser);
+                System.out.println("New Google OAuth user created with ID: " + existingUser.getId());
+            } else {
+                System.out.println("Existing user found: " + existingUser.getId());
             }
             
             // JWT 토큰 생성
             String token = jwtTokenProvider.generateToken(existingUser.getEmail());
+            System.out.println("JWT token generated successfully");
             
-            return ResponseEntity.ok(Map.of(
+            Map<String, Object> response = Map.of(
                 "message", "Google OAuth 로그인이 성공했습니다.",
                 "code", code,
                 "status", "success",
@@ -87,8 +110,18 @@ public class GoogleAuthController {
                 "name", existingUser.getName(),
                 "profileImage", existingUser.getProfileImage(),
                 "role", existingUser.getRole().name()
-            ));
+            );
+            
+            System.out.println("Response: " + response);
+            System.out.println("=== Google OAuth Callback End ===");
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("=== Google OAuth Callback Error ===");
+            System.err.println("Error message: " + e.getMessage());
+            e.printStackTrace();
+            System.err.println("=== Error End ===");
+            
             return ResponseEntity.badRequest().body(Map.of("error", "Google authentication failed: " + e.getMessage()));
         }
     }

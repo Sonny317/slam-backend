@@ -57,6 +57,16 @@ public class User implements UserDetails {
     @Column(name = "profile_image_url")
     private String profileImage;
     
+    // Google OAuth 관련 필드
+    @Column(name = "provider")
+    private String provider; // "google", "local" 등
+    
+    @Column(name = "provider_id")
+    private String providerId; // Google에서 제공하는 고유 ID
+    
+    @Column(name = "oauth_id")
+    private String oauthId; // OAuth 제공자의 사용자 ID
+    
     // --- 리팩토링 핵심 부분 ---
     // UserProfile과의 1:1 관계 설정
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = true)
