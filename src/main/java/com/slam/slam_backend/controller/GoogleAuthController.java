@@ -35,18 +35,33 @@ public class GoogleAuthController {
                 "&access_type=offline" +
                 "&prompt=consent";
         
+        // 디버깅을 위한 로그
+        System.out.println("=== Google OAuth Debug Info ===");
+        System.out.println("Client ID: " + clientId);
+        System.out.println("Redirect URI: " + redirectUri);
+        System.out.println("Generated URL: " + googleAuthUrl);
+        System.out.println("===============================");
+        
         return ResponseEntity.ok(Map.of("authUrl", googleAuthUrl));
     }
 
-    @GetMapping("/api/auth/google/callback")
-    public ResponseEntity<?> googleCallback(@RequestParam("code") String code) {
+    @PostMapping("/api/auth/google/callback")
+    public ResponseEntity<?> googleCallback(@RequestBody Map<String, String> request) {
         try {
+            String code = request.get("code");
+            
+            if (code == null || code.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Authorization code is required"));
+            }
+            
             // TODO: 실제 Google API 호출하여 액세스 토큰과 사용자 정보 가져오기
             // 현재는 임시 응답
             return ResponseEntity.ok(Map.of(
                 "message", "Google OAuth 콜백이 성공적으로 처리되었습니다.",
                 "code", code,
-                "status", "success"
+                "status", "success",
+                "token", "temp-jwt-token", // TODO: 실제 JWT 토큰 생성
+                "email", "temp@example.com" // TODO: 실제 사용자 이메일
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Google authentication failed: " + e.getMessage()));
