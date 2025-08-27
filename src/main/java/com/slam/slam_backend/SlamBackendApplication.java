@@ -10,4 +10,4 @@ public class SlamBackendApplication {
 		SpringApplication.run(SlamBackendApplication.class, args);
 	}
 
-}괜ㄶ으야?
+}
