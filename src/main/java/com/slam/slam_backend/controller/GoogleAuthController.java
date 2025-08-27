@@ -13,6 +13,7 @@ import java.util.Map;
 import com.slam.slam_backend.entity.UserRole;
 import com.slam.slam_backend.entity.UserStatus;
 import com.slam.slam_backend.entity.MembershipType;
+import java.util.HashMap;
 
 @RestController
 @RequiredArgsConstructor
@@ -64,13 +65,14 @@ public class GoogleAuthController {
             
             // TODO: 실제 Google API 호출하여 액세스 토큰과 사용자 정보 가져오기
             // 현재는 임시 사용자 정보 (실제로는 Google API에서 가져와야 함)
-            String email = "google.user@example.com"; // TODO: Google API에서 실제 이메일 가져오기
+            // 실제 구현에서는 Google API에서 받은 이메일을 사용해야 함
+            String email = "google.user." + System.currentTimeMillis() + "@example.com"; // 임시 고유 이메일
             String name = "Google User"; // TODO: Google API에서 실제 이름 가져오기
             String providerId = "google_provider_id"; // TODO: Google API에서 실제 공급자 ID 가져오기
             
             System.out.println("Processing user: " + email);
             
-            // 사용자가 존재하는지 확인
+            // 사용자가 존재하는지 확인 (provider_id로도 확인)
             User existingUser = userRepository.findByEmail(email).orElse(null);
             
             if (existingUser == null) {
@@ -95,22 +97,30 @@ public class GoogleAuthController {
                 System.out.println("New Google OAuth user created with ID: " + existingUser.getId());
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
+                // 기존 사용자가 Google OAuth 사용자가 아니라면 provider 정보 업데이트
+                if (existingUser.getProvider() == null || !"google".equals(existingUser.getProvider())) {
+                    existingUser.setProvider("google");
+                    existingUser.setProviderId(providerId);
+                    existingUser.setOauthId(providerId);
+                    existingUser = userRepository.save(existingUser);
+                    System.out.println("Updated existing user with Google OAuth info");
+                }
             }
             
             // JWT 토큰 생성
             String token = jwtTokenProvider.generateToken(existingUser.getEmail());
             System.out.println("JWT token generated successfully");
             
-            Map<String, Object> response = Map.of(
-                "message", "Google OAuth 로그인이 성공했습니다.",
-                "code", code,
-                "status", "success",
-                "token", token,
-                "email", existingUser.getEmail(),
-                "name", existingUser.getName(),
-                "profileImage", existingUser.getProfileImage(),
-                "role", existingUser.getRole().name()
-            );
+            // null 값 처리를 위해 HashMap 사용
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Google OAuth 로그인이 성공했습니다.");
+            response.put("code", code);
+            response.put("status", "success");
+            response.put("token", token);
+            response.put("email", existingUser.getEmail());
+            response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
+            response.put("profileImage", existingUser.getProfileImage());
+            response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
             
             System.out.println("Response: " + response);
             System.out.println("=== Google OAuth Callback End ===");
