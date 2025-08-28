@@ -5,9 +5,10 @@ import com.slam.slam_backend.repository.UserRepository;
 import com.slam.slam_backend.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 import com.slam.slam_backend.entity.UserRole;
@@ -21,9 +22,13 @@ public class GoogleAuthController {
 
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${google.oauth.client-id}")
     private String clientId;
+
+    @Value("${google.oauth.client-secret}")
+    private String clientSecret;
 
     @Value("${google.oauth.redirect-uri}")
     private String redirectUri;
@@ -63,16 +68,56 @@ public class GoogleAuthController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Authorization code is required"));
             }
             
-            // TODO: 실제 Google API 호출하여 액세스 토큰과 사용자 정보 가져오기
-            // 현재는 임시 사용자 정보 (실제로는 Google API에서 가져와야 함)
-            // 실제 구현에서는 Google API에서 받은 이메일을 사용해야 함
-            String email = "google.user." + System.currentTimeMillis() + "@example.com"; // 임시 고유 이메일
-            String name = "Google User"; // TODO: Google API에서 실제 이름 가져오기
-            String providerId = "google_provider_id"; // TODO: Google API에서 실제 공급자 ID 가져오기
+            // 1. Authorization code로 액세스 토큰 교환
+            String tokenUrl = "https://oauth2.googleapis.com/token";
+            HttpHeaders tokenHeaders = new HttpHeaders();
+            tokenHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             
-            System.out.println("Processing user: " + email);
+            String tokenBody = String.format(
+                "client_id=%s&client_secret=%s&code=%s&grant_type=authorization_code&redirect_uri=%s",
+                clientId, clientSecret, code, redirectUri
+            );
             
-            // 사용자가 존재하는지 확인 (provider_id로도 확인)
+            HttpEntity<String> tokenRequest = new HttpEntity<>(tokenBody, tokenHeaders);
+            ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(tokenUrl, tokenRequest, Map.class);
+            
+            if (tokenResponse.getStatusCode() != HttpStatus.OK || tokenResponse.getBody() == null) {
+                System.out.println("Error: Failed to get access token");
+                return ResponseEntity.badRequest().body(Map.of("error", "Failed to get access token"));
+            }
+            
+            String accessToken = (String) tokenResponse.getBody().get("access_token");
+            System.out.println("Access token received: " + accessToken);
+            
+            // 2. 액세스 토큰으로 사용자 정보 가져오기
+            String userInfoUrl = "https://www.googleapis.com/oauth2/v2/userinfo";
+            HttpHeaders userInfoHeaders = new HttpHeaders();
+            userInfoHeaders.setBearerAuth(accessToken);
+            
+            HttpEntity<String> userInfoRequest = new HttpEntity<>(userInfoHeaders);
+            ResponseEntity<Map> userInfoResponse = restTemplate.exchange(
+                userInfoUrl, HttpMethod.GET, userInfoRequest, Map.class
+            );
+            
+            if (userInfoResponse.getStatusCode() != HttpStatus.OK || userInfoResponse.getBody() == null) {
+                System.out.println("Error: Failed to get user info");
+                return ResponseEntity.badRequest().body(Map.of("error", "Failed to get user info"));
+            }
+            
+            Map<String, Object> userInfo = userInfoResponse.getBody();
+            String email = (String) userInfo.get("email");
+            String name = (String) userInfo.get("name");
+            String providerId = (String) userInfo.get("id");
+            String picture = (String) userInfo.get("picture");
+            
+            System.out.println("User info received - Email: " + email + ", Name: " + name + ", ID: " + providerId);
+            
+            if (email == null || email.isEmpty()) {
+                System.out.println("Error: Email is required but not provided by Google");
+                return ResponseEntity.badRequest().body(Map.of("error", "Email is required but not provided by Google"));
+            }
+            
+            // 3. 사용자가 존재하는지 확인 (이메일과 provider_id로 확인)
             User existingUser = userRepository.findByEmail(email).orElse(null);
             
             if (existingUser == null) {
@@ -80,12 +125,12 @@ public class GoogleAuthController {
                 // 새 사용자 생성 (Google OAuth 사용자) - Builder 패턴 사용
                 User newUser = User.builder()
                     .email(email)
-                    .name(name)
+                    .name(name != null ? name : "Google User")
                     .password("") // Google OAuth 사용자는 비밀번호 없음
                     .role(UserRole.MEMBER) // 기본 역할 설정
                     .status(UserStatus.PRE_MEMBER) // 가회원 상태
                     .membershipType(MembershipType.NONE) // 기본 멤버십 타입
-                    .profileImage(null)
+                    .profileImage(picture)
                     .provider("google")
                     .providerId(providerId)
                     .oauthId(providerId)
@@ -102,6 +147,9 @@ public class GoogleAuthController {
                     existingUser.setProvider("google");
                     existingUser.setProviderId(providerId);
                     existingUser.setOauthId(providerId);
+                    if (picture != null) {
+                        existingUser.setProfileImage(picture);
+                    }
                     existingUser = userRepository.save(existingUser);
                     System.out.println("Updated existing user with Google OAuth info");
                 }
