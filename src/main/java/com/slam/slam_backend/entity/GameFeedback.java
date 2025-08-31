@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
+import lombok.Builder.Default;
 
 import java.time.LocalDateTime;
 
@@ -50,6 +51,7 @@ public class GameFeedback {
     private String submittedBy; // 피드백 작성자 (익명화된 ID)
 
     @Column(nullable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     // 인원 수 대비 점수 계산을 위한 메모 필드

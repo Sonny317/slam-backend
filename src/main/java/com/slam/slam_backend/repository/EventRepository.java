@@ -14,6 +14,9 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     // ✅ 지부별 최신 이벤트 조회
     Optional<Event> findTopByBranchOrderByEventDateTimeDesc(String branch);
     
+    // ✅ 브랜치와 상품 타입별 최신 이벤트 조회
+    Optional<Event> findTopByBranchAndProductTypeOrderByEventDateTimeDesc(String branch, String productType);
+    
     // ✅ 브랜치별 최대 event_sequence 조회
     @Query("SELECT MAX(e.eventSequence) FROM Event e WHERE e.branch = :branch AND e.eventSequence IS NOT NULL")
     Integer findMaxEventSequenceByBranch(@Param("branch") String branch);
