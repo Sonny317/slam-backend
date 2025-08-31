@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -236,8 +237,15 @@ public class MembershipService {
         
         long currentMembers = userMembershipRepository.countByBranchNameIgnoreCaseAndStatusIgnoreCase(branch, "ACTIVE");
         
-        Event latestEvent = eventRepository.findTopByBranchOrderByEventDateTimeDesc(branch)
+        // 멤버십 이벤트를 찾기 (productType이 "Membership"인 이벤트)
+        Event latestEvent = eventRepository.findTopByBranchAndProductTypeOrderByEventDateTimeDesc(branch, "Membership")
             .orElse(null);
+        
+        // 멤버십 이벤트가 없으면 일반 이벤트 중에서 찾기
+        if (latestEvent == null) {
+            latestEvent = eventRepository.findTopByBranchOrderByEventDateTimeDesc(branch)
+                .orElse(null);
+        }
         
         int earlyBirdCap = 20;
         int earlyBirdPrice = 800;
@@ -256,7 +264,9 @@ public class MembershipService {
             }
             totalCapacity = latestEvent.getCapacity();
             
-            if (latestEvent.getRegistrationDeadline() != null) {
+            if (latestEvent.getEarlyBirdEndDate() != null) {
+                earlyBirdDeadline = latestEvent.getEarlyBirdEndDate().toString();
+            } else if (latestEvent.getRegistrationDeadline() != null) {
                 earlyBirdDeadline = latestEvent.getRegistrationDeadline().toString();
             }
             
@@ -267,7 +277,9 @@ public class MembershipService {
         
         boolean isEarlyBirdActive = latestEvent != null && 
                                    latestEvent.getEarlyBirdPrice() != null && 
-                                   currentMembers < earlyBirdCap;
+                                   currentMembers < earlyBirdCap &&
+                                   (latestEvent.getEarlyBirdEndDate() == null || 
+                                    LocalDateTime.now().isBefore(latestEvent.getEarlyBirdEndDate()));
         
         int currentPrice = isEarlyBirdActive ? earlyBirdPrice : regularPrice;
         
@@ -280,6 +292,12 @@ public class MembershipService {
         pricing.put("totalCapacity", totalCapacity);
         pricing.put("earlyBirdDeadline", earlyBirdDeadline);
         pricing.put("regularDeadline", regularDeadline);
+        
+        // Capacity Warning 설정 추가
+        if (latestEvent != null) {
+            pricing.put("capacityWarningThreshold", latestEvent.getCapacityWarningThreshold());
+            pricing.put("showCapacityWarning", latestEvent.getShowCapacityWarning());
+        }
         
         int totalValue = regularPrice + 600;
         pricing.put("totalValue", totalValue);
