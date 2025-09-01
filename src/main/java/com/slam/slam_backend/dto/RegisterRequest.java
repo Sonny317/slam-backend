@@ -21,4 +21,8 @@ public class RegisterRequest {
     private boolean termsOfServiceAgreed;
     private boolean privacyPolicyAgreed;
     private boolean eventPhotoAgreed;
+    
+    // Google OAuth 관련 필드
+    private boolean isGoogleUser;
+    private String googleId;
 }

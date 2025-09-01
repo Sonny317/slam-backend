@@ -40,8 +40,25 @@ public class UserController {
     @PostMapping("/auth/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            userService.registerUser(request);
-            return ResponseEntity.ok("Registration completed");
+            User user = userService.registerUser(request);
+            
+            // Google OAuth 사용자인 경우 바로 토큰 생성하여 반환
+            if (request.isGoogleUser()) {
+                String token = jwtTokenProvider.generateToken(user.getEmail());
+                
+                LoginResponse responseDto = LoginResponse.builder()
+                        .token(token)
+                        .email(user.getEmail())
+                        .name(user.getName())
+                        .profileImage(user.getProfileImage())
+                        .role(user.getRole().name())
+                        .build();
+                
+                return ResponseEntity.ok(responseDto);
+            } else {
+                // 일반 회원가입의 경우 기존과 동일
+                return ResponseEntity.ok("Registration completed");
+            }
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

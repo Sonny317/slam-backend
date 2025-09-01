@@ -66,6 +66,11 @@ public class UserService {
 
     @Transactional
 public User registerUser(RegisterRequest request) {
+    // Google OAuth 사용자인 경우 별도 처리
+    if (request.isGoogleUser()) {
+        return registerGoogleUser(request);
+    }
+    
     // 1. 인증코드 검증 및 비밀번호 유효성 검사 (기존과 동일)
     VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("Verification code not issued or expired"));
@@ -101,6 +106,30 @@ public User registerUser(RegisterRequest request) {
     verificationCodeRepository.delete(storedCode);
     
     // 5. User를 저장합니다. Cascade 설정에 의해 UserProfile도 함께 저장됩니다.
+    return userRepository.save(user);
+}
+
+@Transactional
+public User registerGoogleUser(RegisterRequest request) {
+    // Google OAuth 사용자는 인증코드 검증 없이 회원가입
+    User user = User.builder()
+            .name(request.getName())
+            .email(request.getEmail())
+            .password("") // Google OAuth 사용자는 비밀번호 없음
+            .role(UserRole.MEMBER)
+            .status(UserStatus.PRE_MEMBER)
+            .provider("google")
+            .providerId(request.getGoogleId())
+            .oauthId(request.getGoogleId())
+            .build();
+
+    // UserProfile 객체 생성 및 관계 설정
+    UserProfile userProfile = UserProfile.builder()
+            .user(user)
+            .build();
+    
+    user.setUserProfile(userProfile);
+    
     return userRepository.save(user);
 }
     
