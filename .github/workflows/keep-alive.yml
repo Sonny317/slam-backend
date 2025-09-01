@@ -2,19 +2,29 @@ name: Keep Render Server Awake
 
 on:
   schedule:
-    - cron: '*/12 * * * *'
+    - cron: '*/12 * * * *'  # 14분마다
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Curl ping to Render backend (with retry and status check)
+      - name: Print current time
+        run: date
+
+      - name: Ping Render health endpoint with retries
         run: |
-          echo "Pinging https://slam-backend.onrender.com/health"
-          response=$(curl -s -o /dev/null -w "%{http_code}" --retry 5 --max-time 15 https://slam-backend.onrender.com/health)
-          echo "Response code: $response"
-          if [ "$response" -ne 200 ]; then
-            echo "Ping failed with status $response"
-            exit 1
-          fi
+          echo "Sending request to https://slam-backend.onrender.com/health"
+          for i in {1..5}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://slam-backend.onrender.com/health)
+            echo "Attempt $i - HTTP Status: $status"
+            if [ "$status" -eq 200 ]; then
+              echo "✅ Success! Server is awake."
+              exit 0
+            fi
+            echo "⚠️ Not ready yet. Waiting 10 seconds before retry..."
+            sleep 10
+          done
+          echo "❌ Failed to wake server after 5 attempts."
+          exit 1
