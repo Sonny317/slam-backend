@@ -2,13 +2,19 @@ name: Keep Render Server Awake
 
 on:
   schedule:
-    - cron: '*/14 * * * *'  # 매 14분마다 실행
-  workflow_dispatch:         # 수동 실행도 가능하게
+    - cron: '*/12 * * * *'
+  workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Curl ping to Render backend
-        run: curl -s https://slam-backend.onrender.com/health
+      - name: Curl ping to Render backend (with retry and status check)
+        run: |
+          echo "Pinging https://slam-backend.onrender.com/health"
+          response=$(curl -s -o /dev/null -w "%{http_code}" --retry 5 --max-time 15 https://slam-backend.onrender.com/health)
+          echo "Response code: $response"
+          if [ "$response" -ne 200 ]; then
+            echo "Ping failed with status $response"
+            exit 1
+          fi
