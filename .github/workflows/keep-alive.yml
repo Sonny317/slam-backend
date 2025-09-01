@@ -2,31 +2,13 @@ name: Keep Render Server Awake
 
 on:
   schedule:
-    # 매 10분마다 실행 (더 짧은 간격으로 안전성 확보)
-    - cron: '*/10 * * * *'
-  workflow_dispatch: # 수동 실행 가능
+    - cron: '*/14 * * * *'  # 매 14분마다 실행
+  workflow_dispatch:         # 수동 실행도 가능하게
 
 jobs:
-  wake-server:
+  ping:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Wake Backend Server
-        run: |
-          echo "Pinging backend server..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://slam-backend.onrender.com/api/admin/test)
-          if [ $response -eq 200 ]; then
-            echo "✅ Backend server is awake (HTTP $response)"
-          else
-            echo "❌ Backend server ping failed (HTTP $response)"
-            exit 1
-          fi
-          
-      - name: Alternative Health Check
-        if: failure()  # 위 단계가 실패한 경우에만 실행
-        run: |
-          echo "Trying alternative endpoints..."
-          curl -f https://slam-backend.onrender.com/api/users/me || echo "Alternative ping failed"
-          
-      - name: Log Timestamp
-        run: |
-          echo "Keep-alive executed at: $(date)"
+      - name: Curl ping to Render backend
+        run: curl -s https://slam-backend.onrender.com/health
