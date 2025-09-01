@@ -15,6 +15,8 @@ import com.slam.slam_backend.entity.UserRole;
 import com.slam.slam_backend.entity.UserStatus;
 import com.slam.slam_backend.entity.MembershipType;
 import java.util.HashMap;
+import java.net.URLEncoder;
+import java.io.UnsupportedEncodingException;
 
 @RestController
 @RequiredArgsConstructor
@@ -117,29 +119,28 @@ public class GoogleAuthController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required but not provided by Google"));
             }
             
-            // 3. 사용자가 존재하는지 확인 (이메일과 provider_id로 확인)
+            // 3. 사용자가 존재하는지 확인 (이메일로 확인)
             User existingUser = userRepository.findByEmail(email).orElse(null);
             
             if (existingUser == null) {
-                System.out.println("Creating new Google OAuth user: " + email);
-                // 새 사용자 생성 (Google OAuth 사용자) - Builder 패턴 사용
-                User newUser = User.builder()
-                    .email(email)
-                    .name(name != null ? name : "Google User")
-                    .password("") // Google OAuth 사용자는 비밀번호 없음
-                    .role(UserRole.MEMBER) // 기본 역할 설정
-                    .status(UserStatus.PRE_MEMBER) // 가회원 상태
-                    .membershipType(MembershipType.NONE) // 기본 멤버십 타입
-                    .profileImage(picture)
-                    .provider("google")
-                    .providerId(providerId)
-                    .oauthId(providerId)
-                    .build();
+                System.out.println("New user detected: " + email + " - Redirecting to signup for terms agreement");
+                // 신규 사용자인 경우 약관 동의를 위해 SignUpPage로 리다이렉트
+                Map<String, Object> userData = new HashMap<>();
+                userData.put("email", email);
+                userData.put("name", name != null ? name : "Google User");
+                userData.put("providerId", providerId);
+                userData.put("picture", picture);
                 
-                System.out.println("User object created with status: " + newUser.getStatus());
-                
-                existingUser = userRepository.save(newUser);
-                System.out.println("New Google OAuth user created with ID: " + existingUser.getId());
+                try {
+                    return ResponseEntity.ok(Map.of(
+                        "redirectTo", "/signup?googleUser=" + URLEncoder.encode(userData.toString(), "UTF-8"),
+                        "message", "New user - terms agreement required",
+                        "status", "new_user"
+                    ));
+                } catch (UnsupportedEncodingException e) {
+                    System.err.println("URL encoding error: " + e.getMessage());
+                    return ResponseEntity.badRequest().body(Map.of("error", "URL encoding failed"));
+                }
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
                 // 기존 사용자가 Google OAuth 사용자가 아니라면 provider 정보 업데이트
@@ -153,27 +154,26 @@ public class GoogleAuthController {
                     existingUser = userRepository.save(existingUser);
                     System.out.println("Updated existing user with Google OAuth info");
                 }
+                
+                // 기존 사용자는 바로 로그인 처리
+                String token = jwtTokenProvider.generateToken(existingUser.getEmail());
+                System.out.println("JWT token generated successfully for existing user");
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "Google OAuth 로그인이 성공했습니다.");
+                response.put("code", code);
+                response.put("status", "success");
+                response.put("token", token);
+                response.put("email", existingUser.getEmail());
+                response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
+                response.put("profileImage", existingUser.getProfileImage());
+                response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
+                
+                System.out.println("Response: " + response);
+                System.out.println("=== Google OAuth Callback End ===");
+                
+                return ResponseEntity.ok(response);
             }
-            
-            // JWT 토큰 생성
-            String token = jwtTokenProvider.generateToken(existingUser.getEmail());
-            System.out.println("JWT token generated successfully");
-            
-            // null 값 처리를 위해 HashMap 사용
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Google OAuth 로그인이 성공했습니다.");
-            response.put("code", code);
-            response.put("status", "success");
-            response.put("token", token);
-            response.put("email", existingUser.getEmail());
-            response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
-            response.put("profileImage", existingUser.getProfileImage());
-            response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
-            
-            System.out.println("Response: " + response);
-            System.out.println("=== Google OAuth Callback End ===");
-            
-            return ResponseEntity.ok(response);
         } catch (Exception e) {
             System.err.println("=== Google OAuth Callback Error ===");
             System.err.println("Error message: " + e.getMessage());
