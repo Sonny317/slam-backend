@@ -123,24 +123,22 @@ public class GoogleAuthController {
             User existingUser = userRepository.findByEmail(email).orElse(null);
             
             if (existingUser == null) {
-                System.out.println("New user detected: " + email + " - Redirecting to signup for terms agreement");
-                // 신규 사용자인 경우 약관 동의를 위해 SignUpPage로 리다이렉트
+                System.out.println("New user detected: " + email + " - Returning user data for terms agreement");
+                // 신규 사용자인 경우 사용자 데이터 반환 (LoginPage에서 약관 동의 처리)
                 Map<String, Object> userData = new HashMap<>();
                 userData.put("email", email);
                 userData.put("name", name != null ? name : "Google User");
                 userData.put("providerId", providerId);
                 userData.put("picture", picture);
                 
-                try {
-                    return ResponseEntity.ok(Map.of(
-                        "redirectTo", "/signup?googleUser=" + URLEncoder.encode(userData.toString(), "UTF-8"),
-                        "message", "New user - terms agreement required",
-                        "status", "new_user"
-                    ));
-                } catch (UnsupportedEncodingException e) {
-                    System.err.println("URL encoding error: " + e.getMessage());
-                    return ResponseEntity.badRequest().body(Map.of("error", "URL encoding failed"));
-                }
+                Map<String, Object> response = new HashMap<>();
+                response.put("isNewUser", true);
+                response.put("userData", userData);
+                response.put("message", "New user - terms agreement required");
+                response.put("status", "new_user");
+                
+                System.out.println("Response for new user: " + response);
+                return ResponseEntity.ok(response);
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
                 // 기존 사용자가 Google OAuth 사용자가 아니라면 provider 정보 업데이트
