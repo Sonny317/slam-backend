@@ -66,10 +66,20 @@ public class UserService {
 
     @Transactional
 public User registerUser(RegisterRequest request) {
+    System.out.println("=== Register User Debug ===");
+    System.out.println("Request email: " + request.getEmail());
+    System.out.println("Request isGoogleUser: " + request.isGoogleUser());
+    System.out.println("Request googleId: " + request.getGoogleId());
+    System.out.println("Request name: " + request.getName());
+    System.out.println("Request password: " + (request.getPassword() != null ? "NOT_NULL" : "NULL"));
+    
     // Google OAuth 사용자인 경우 별도 처리
     if (request.isGoogleUser()) {
+        System.out.println("Processing as Google OAuth user");
         return registerGoogleUser(request);
     }
+    
+    System.out.println("Processing as regular user - checking verification code");
     
     // 1. 인증코드 검증 및 비밀번호 유효성 검사 (기존과 동일)
     VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
@@ -111,6 +121,9 @@ public User registerUser(RegisterRequest request) {
 
 @Transactional
 public User registerGoogleUser(RegisterRequest request) {
+    System.out.println("=== Register Google User Debug ===");
+    System.out.println("Creating Google user: " + request.getEmail());
+    
     // Google OAuth 사용자는 인증코드 검증 없이 회원가입
     User user = User.builder()
             .name(request.getName())

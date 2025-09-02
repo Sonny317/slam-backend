@@ -23,6 +23,6 @@ public class RegisterRequest {
     private boolean eventPhotoAgreed;
     
     // Google OAuth 관련 필드
-    private boolean isGoogleUser;
+    private boolean isGoogleUser = false;
     private String googleId;
 }

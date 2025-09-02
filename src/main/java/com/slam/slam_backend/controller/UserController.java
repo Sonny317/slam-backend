@@ -40,6 +40,10 @@ public class UserController {
     @PostMapping("/auth/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
+            System.out.println("=== Controller Register Debug ===");
+            System.out.println("Request body isGoogleUser: " + request.isGoogleUser());
+            System.out.println("Request body email: " + request.getEmail());
+            
             User user = userService.registerUser(request);
             
             // Google OAuth 사용자인 경우 바로 토큰 생성하여 반환
