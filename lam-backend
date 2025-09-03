@@ -1,0 +1,4 @@
+warning: in the working copy of 'src/main/java/com/slam/slam_backend/controller/UserController.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/slam/slam_backend/dto/RegisterRequest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/slam/slam_backend/service/UserService.java', LF will be replaced by CRLF the next time Git touches it
+src/main/java/com/slam/slam_backend/service/MembershipService.java
