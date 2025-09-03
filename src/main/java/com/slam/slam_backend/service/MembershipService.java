@@ -252,7 +252,8 @@ public class MembershipService {
         int regularPrice = 900;
         int totalCapacity = 80;
         String earlyBirdDeadline = "2025-03-15T23:59:59";
-        String regularDeadline = "2025-09-12T23:59:59";
+        String registrationDeadline = "2025-09-12T23:59:59";
+        String eventDateTime = "2025-09-12T23:59:59";
         
         if (latestEvent != null) {
             if (latestEvent.getEarlyBirdPrice() != null) {
@@ -264,14 +265,19 @@ public class MembershipService {
             }
             totalCapacity = latestEvent.getCapacity();
             
+            // Early Bird 종료일 설정
             if (latestEvent.getEarlyBirdEndDate() != null) {
                 earlyBirdDeadline = latestEvent.getEarlyBirdEndDate().toString();
-            } else if (latestEvent.getRegistrationDeadline() != null) {
-                earlyBirdDeadline = latestEvent.getRegistrationDeadline().toString();
             }
             
+            // Registration Deadline 설정
+            if (latestEvent.getRegistrationDeadline() != null) {
+                registrationDeadline = latestEvent.getRegistrationDeadline().toString();
+            }
+            
+            // Event DateTime 설정
             if (latestEvent.getEventDateTime() != null) {
-                regularDeadline = latestEvent.getEventDateTime().toString();
+                eventDateTime = latestEvent.getEventDateTime().toString();
             }
         }
         
@@ -291,7 +297,8 @@ public class MembershipService {
         pricing.put("isEarlyBirdActive", isEarlyBirdActive);
         pricing.put("totalCapacity", totalCapacity);
         pricing.put("earlyBirdDeadline", earlyBirdDeadline);
-        pricing.put("regularDeadline", regularDeadline);
+        pricing.put("registrationDeadline", registrationDeadline);
+        pricing.put("eventDateTime", eventDateTime);
         
         // Capacity Warning 설정 추가
         if (latestEvent != null) {
