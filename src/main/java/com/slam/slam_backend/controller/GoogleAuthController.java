@@ -178,7 +178,7 @@ public class GoogleAuthController {
                     User newUser = User.builder()
                             .name(name != null ? name : "Google User")
                             .email(email)
-                            .password(null) // Google OAuth users don't have password
+                            .password("") // Temporary: use empty string until DB schema is updated
                             .role(UserRole.MEMBER)
                             .status(UserStatus.PRE_MEMBER)
                             .provider("google")
