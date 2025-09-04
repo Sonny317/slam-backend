@@ -238,33 +238,20 @@ public class GoogleAuthController {
                     return ResponseEntity.ok(response);
                 }
             }
-        } catch (Exception e) {
-            System.err.println("=== Google OAuth Callback Error ===");
-            System.err.println("Error message: " + e.getMessage());
-            e.printStackTrace();
-            System.err.println("=== Error End ===");
-            
-            // 예외 발생 시에도 신규 사용자 정보를 포함하여 반환
-            try {
-                // Google에서 받은 정보로 신규 사용자 응답 생성
-                Map<String, Object> userData = new HashMap<>();
-                userData.put("email", "unknown@example.com"); // 기본값
-                userData.put("name", "Google User");
-                userData.put("providerId", "google_unknown");
-                userData.put("picture", null);
-                
-                Map<String, Object> response = new HashMap<>();
-                response.put("isNewUser", true);
-                response.put("userData", userData);
-                response.put("message", "New user - terms agreement required");
-                response.put("status", "new_user");
-                response.put("error", "Google authentication failed: " + e.getMessage());
-                
-                return ResponseEntity.badRequest().body(response);
-            } catch (Exception fallbackError) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Google authentication failed: " + e.getMessage()));
-            }
-        }
+                 } catch (Exception e) {
+             System.err.println("=== Google OAuth Callback Error ===");
+             System.err.println("Error message: " + e.getMessage());
+             e.printStackTrace();
+             System.err.println("=== Error End ===");
+             
+             // 예외 발생 시 순수 에러만 반환 (신규 사용자 응답 포함하지 않음)
+             Map<String, Object> errorResponse = new HashMap<>();
+             errorResponse.put("error", "Google authentication failed: " + e.getMessage());
+             errorResponse.put("status", "error");
+             errorResponse.put("requiresRetry", true);
+             
+             return ResponseEntity.badRequest().body(errorResponse);
+         }
     }
 
     @PostMapping("/api/auth/google/verify")
