@@ -76,8 +76,19 @@ public User registerUser(RegisterRequest request) {
     System.out.println("Request code: " + (request.getCode() != null ? "NOT_NULL" : "NULL"));
     
     // Google OAuth 사용자인 경우 별도 처리 (인증코드 검증 이전에 체크)
-    if (request.isGoogleUser() != null && request.isGoogleUser()) {
+    if (request.isGoogleUser() == true) {
         System.out.println("Processing as Google OAuth user - skipping verification code check");
+        return registerGoogleUser(request);
+    }
+    
+    // 추가 체크: googleId가 있거나 password가 비어있으면 Google OAuth 사용자로 처리
+    if (request.getGoogleId() != null && !request.getGoogleId().isEmpty()) {
+        System.out.println("Google ID detected - processing as Google OAuth user");
+        return registerGoogleUser(request);
+    }
+    
+    if (request.getPassword() == null || request.getPassword().isEmpty()) {
+        System.out.println("No password provided - processing as Google OAuth user");
         return registerGoogleUser(request);
     }
     
