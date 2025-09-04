@@ -172,6 +172,7 @@ public User registerGoogleUser(RegisterRequest request) {
             .provider("google")
             .providerId(request.getGoogleId())
             .oauthId(request.getGoogleId())
+            .profileImage(request.getProfileImage()) // Google 프로필 이미지 설정
             .createdAt(LocalDateTime.now()) // 생성 시간 명시적 설정
             .build();
 

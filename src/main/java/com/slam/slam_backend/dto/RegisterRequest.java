@@ -1,5 +1,6 @@
 package com.slam.slam_backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,7 +23,9 @@ public class RegisterRequest {
     private boolean privacyPolicyAgreed;
     private boolean eventPhotoAgreed;
     
-    // Google OAuth 관련 필드
-    private boolean isGoogleUser = false;
+    // Google OAuth 관련 필드  
+    @JsonProperty("isGoogleUser")
+    private boolean googleUser = false;
     private String googleId;
+    private String profileImage;
 }

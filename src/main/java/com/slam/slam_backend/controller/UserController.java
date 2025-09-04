@@ -53,6 +53,7 @@ public class UserController {
             System.out.println("User registered successfully: " + user.getEmail());
             
             // Google OAuth 사용자인 경우 바로 토큰 생성하여 반환
+            System.out.println("Checking if Google user: " + request.isGoogleUser());
             if (request.isGoogleUser()) {
                 String token = jwtTokenProvider.generateToken(user.getEmail());
                 System.out.println("JWT token generated for Google user: " + user.getEmail());
@@ -65,10 +66,11 @@ public class UserController {
                         .role(user.getRole().name())
                         .build();
                 
-                System.out.println("Returning response for Google user registration");
+                System.out.println("Returning response for Google user registration: " + responseDto);
                 return ResponseEntity.ok(responseDto);
             } else {
                 // 일반 회원가입의 경우 기존과 동일
+                System.out.println("Regular user registration - not returning token");
                 return ResponseEntity.ok("Registration completed");
             }
         } catch (IllegalArgumentException e) {

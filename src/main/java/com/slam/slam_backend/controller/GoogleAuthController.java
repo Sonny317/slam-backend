@@ -191,31 +191,17 @@ public class GoogleAuthController {
                         return ResponseEntity.ok(response);
                     }
                     
-                    // Create user directly
-                    User newUser = User.builder()
-                            .name(name != null ? name : "Google User")
-                            .email(email)
-                            .password("") // Google OAuth users use empty string (DB constraint workaround)
-                            .role(UserRole.MEMBER)
-                            .status(UserStatus.PRE_MEMBER)
-                            .provider("google")
-                            .providerId(providerId != null ? providerId : "google_" + email)
-                            .oauthId(providerId != null ? providerId : "google_" + email)
-                            .profileImage(picture)
-                            .build();
+                    // DO NOT create user in database yet - wait for terms agreement
+                    System.out.println("New user detected - requiring terms agreement first");
                     
-                    // createdAt will be set automatically by @PrePersist
-                    
-                    newUser = userRepository.save(newUser);
-                    System.out.println("New Google OAuth user created: " + newUser.getId());
-                    
-                    // Return user data for terms agreement
+                    // Return user data for terms agreement WITHOUT saving to database
                     Map<String, Object> userData = new HashMap<>();
                     userData.put("email", email);
                     userData.put("name", name != null ? name : "Google User");
                     userData.put("providerId", providerId != null ? providerId : "google_" + email);
                     userData.put("picture", picture);
-                    userData.put("userId", newUser.getId());
+                    userData.put("googleId", providerId != null ? providerId : "google_" + email);
+                    // userId will be assigned after terms agreement
                     
                     Map<String, Object> response = new HashMap<>();
                     response.put("isNewUser", true);
