@@ -80,8 +80,12 @@ public class GoogleAuthController {
                 clientId, clientSecret, code, redirectUri
             );
             
+            System.out.println("Token request body: " + tokenBody);
             HttpEntity<String> tokenRequest = new HttpEntity<>(tokenBody, tokenHeaders);
+            
             ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(tokenUrl, tokenRequest, Map.class);
+            System.out.println("Token response status: " + tokenResponse.getStatusCode());
+            System.out.println("Token response body: " + tokenResponse.getBody());
             
             if (tokenResponse.getStatusCode() != HttpStatus.OK || tokenResponse.getBody() == null) {
                 System.out.println("Error: Failed to get access token");
@@ -162,6 +166,7 @@ public class GoogleAuthController {
                 response.put("status", "new_user");
                 
                 System.out.println("Response for new user: " + response);
+                System.out.println("=== Google OAuth Callback End (New User) ===");
                 return ResponseEntity.ok(response);
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
@@ -218,7 +223,26 @@ public class GoogleAuthController {
             e.printStackTrace();
             System.err.println("=== Error End ===");
             
-            return ResponseEntity.badRequest().body(Map.of("error", "Google authentication failed: " + e.getMessage()));
+            // 예외 발생 시에도 신규 사용자 정보를 포함하여 반환
+            try {
+                // Google에서 받은 정보로 신규 사용자 응답 생성
+                Map<String, Object> userData = new HashMap<>();
+                userData.put("email", "unknown@example.com"); // 기본값
+                userData.put("name", "Google User");
+                userData.put("providerId", "google_unknown");
+                userData.put("picture", null);
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("isNewUser", true);
+                response.put("userData", userData);
+                response.put("message", "New user - terms agreement required");
+                response.put("status", "new_user");
+                response.put("error", "Google authentication failed: " + e.getMessage());
+                
+                return ResponseEntity.badRequest().body(response);
+            } catch (Exception fallbackError) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Google authentication failed: " + e.getMessage()));
+            }
         }
     }
 
