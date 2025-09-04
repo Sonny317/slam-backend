@@ -76,7 +76,7 @@ public User registerUser(RegisterRequest request) {
     System.out.println("Request code: " + (request.getCode() != null ? "NOT_NULL" : "NULL"));
     
     // Google OAuth 사용자인 경우 별도 처리 (인증코드 검증 이전에 체크)
-    if (request.isGoogleUser()) {
+    if (request.isGoogleUser() != null && request.isGoogleUser()) {
         System.out.println("Processing as Google OAuth user - skipping verification code check");
         return registerGoogleUser(request);
     }

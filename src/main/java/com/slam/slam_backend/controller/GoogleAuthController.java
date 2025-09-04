@@ -89,7 +89,15 @@ public class GoogleAuthController {
             
             if (tokenResponse.getStatusCode() != HttpStatus.OK || tokenResponse.getBody() == null) {
                 System.out.println("Error: Failed to get access token");
-                return ResponseEntity.badRequest().body(Map.of("error", "Failed to get access token"));
+                System.out.println("Token response status: " + tokenResponse.getStatusCode());
+                System.out.println("Token response body: " + tokenResponse.getBody());
+                
+                // 토큰 교환 실패 시 더 구체적인 에러 메시지
+                String errorMessage = "Failed to get access token";
+                if (tokenResponse.getBody() != null && tokenResponse.getBody().containsKey("error")) {
+                    errorMessage = "Google OAuth error: " + tokenResponse.getBody().get("error");
+                }
+                return ResponseEntity.badRequest().body(Map.of("error", errorMessage));
             }
             
             String accessToken = (String) tokenResponse.getBody().get("access_token");
