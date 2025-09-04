@@ -82,7 +82,7 @@ public User registerUser(RegisterRequest request) {
     
     System.out.println("Processing as regular user - checking verification code");
     
-    // 1. 인증코드 검증 및 비밀번호 유효성 검사 (기존과 동일)
+    // 1. 인증코드 검증 및 비밀번호 유효성 검사 (일반 사용자만)
     VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("Verification code not issued or expired"));
 
@@ -95,7 +95,10 @@ public User registerUser(RegisterRequest request) {
         throw new IllegalArgumentException("Invalid verification code");
     }
 
-    validatePassword(request.getPassword());
+    // Google OAuth 사용자가 아닌 경우에만 비밀번호 검증
+    if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+        validatePassword(request.getPassword());
+    }
 
     // 2. User 객체 생성 (핵심 정보만)
     User user = User.builder()
@@ -147,7 +150,7 @@ public User registerGoogleUser(RegisterRequest request) {
     User user = User.builder()
             .name(request.getName())
             .email(request.getEmail())
-            .password("") // Google OAuth 사용자는 비밀번호 없음
+            .password(null) // Google OAuth 사용자는 비밀번호 없음
             .role(UserRole.MEMBER)
             .status(UserStatus.PRE_MEMBER)
             .provider("google")
@@ -162,6 +165,7 @@ public User registerGoogleUser(RegisterRequest request) {
     
     user.setUserProfile(userProfile);
     
+    System.out.println("Creating new Google OAuth user: " + user.getEmail());
     return userRepository.save(user);
 }
     
