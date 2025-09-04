@@ -178,7 +178,7 @@ public class GoogleAuthController {
                     User newUser = User.builder()
                             .name(name != null ? name : "Google User")
                             .email(email)
-                            .password("") // Temporary: use empty string until DB schema is updated
+                            .password("") // Google OAuth users use empty string (DB constraint workaround)
                             .role(UserRole.MEMBER)
                             .status(UserStatus.PRE_MEMBER)
                             .provider("google")

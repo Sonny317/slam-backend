@@ -87,7 +87,7 @@ public User registerUser(RegisterRequest request) {
         return registerGoogleUser(request);
     }
     
-    if (request.getPassword() == null || request.getPassword().isEmpty()) {
+    if (request.getPassword() == null || request.getPassword().isEmpty() || request.getPassword().equals("")) {
         System.out.println("No password provided - processing as Google OAuth user");
         return registerGoogleUser(request);
     }
@@ -166,7 +166,7 @@ public User registerGoogleUser(RegisterRequest request) {
     User user = User.builder()
             .name(request.getName())
             .email(request.getEmail())
-            .password(null) // Google OAuth 사용자는 비밀번호 없음
+            .password("") // Google OAuth users use empty string (DB constraint workaround)
             .role(UserRole.MEMBER)
             .status(UserStatus.PRE_MEMBER)
             .provider("google")
