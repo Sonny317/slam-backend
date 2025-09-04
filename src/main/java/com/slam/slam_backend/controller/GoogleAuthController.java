@@ -119,8 +119,22 @@ public class GoogleAuthController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required but not provided by Google"));
             }
             
-            // 3. Check if user exists (check by email)
+            // 더 명확한 로직
             User existingUser = userRepository.findByEmail(email).orElse(null);
+
+            if (existingUser == null) {
+                // 완전히 새로운 사용자
+                System.out.println("Completely new user detected: " + email);
+                // 신규 사용자 처리
+            } else if (existingUser.getProvider() != null && "google".equals(existingUser.getProvider())) {
+                // 이미 Google OAuth로 가입된 사용자
+                System.out.println("Existing Google OAuth user: " + email);
+                // 기존 Google 사용자 로그인
+            } else {
+                // 일반 회원가입으로 가입된 사용자 (Google OAuth로 전환)
+                System.out.println("Converting existing regular user to Google OAuth: " + email);
+                // 기존 사용자를 Google OAuth로 업데이트
+            }
             
             if (existingUser == null) {
                 System.out.println("New user detected: " + email + " - Returning user data for terms agreement");
