@@ -254,7 +254,7 @@ public class AdminController {
     @DeleteMapping("/events")
     public ResponseEntity<?> deleteEvent(@RequestParam Long eventId, Authentication authentication) {
         if (authentication == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "로그인이 필요합니다."));
+            return ResponseEntity.status(401).body(Map.of("error", "Login required."));
         }
         String userEmail = authentication.getName();
         User user = userRepository.findByEmail(userEmail).orElse(null);

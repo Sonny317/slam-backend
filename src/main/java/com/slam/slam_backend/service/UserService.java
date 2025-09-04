@@ -28,6 +28,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.UUID;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -124,6 +125,24 @@ public User registerGoogleUser(RegisterRequest request) {
     System.out.println("=== Register Google User Debug ===");
     System.out.println("Creating Google user: " + request.getEmail());
     
+    // Check if user already exists
+    Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
+    if (existingUser.isPresent()) {
+        User user = existingUser.get();
+        // If user exists but is not a Google OAuth user, update their provider info
+        if (user.getProvider() == null || !"google".equals(user.getProvider())) {
+            System.out.println("Updating existing user with Google OAuth info: " + request.getEmail());
+            user.setProvider("google");
+            user.setProviderId(request.getGoogleId());
+            user.setOauthId(request.getGoogleId());
+            return userRepository.save(user);
+        } else {
+            // User already exists as Google OAuth user
+            System.out.println("User already exists as Google OAuth user: " + request.getEmail());
+            return user;
+        }
+    }
+    
     // Google OAuth 사용자는 인증코드 검증 없이 회원가입
     User user = User.builder()
             .name(request.getName())
@@ -151,15 +170,15 @@ public User registerGoogleUser(RegisterRequest request) {
     private void validatePassword(String password) {
         String passwordRegex = "^(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{6,}$";
         if (!Pattern.matches(passwordRegex, password)) {
-            throw new IllegalArgumentException("비밀번호는 특수문자를 포함하여 6자리 이상이어야 합니다.");
+            throw new IllegalArgumentException("Password must be at least 6 characters and include special characters.");
         }
     }
 
     public User login(String email, String rawPassword) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("이메일이 존재하지 않습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Email does not exist."));
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new IllegalArgumentException("Password does not match.");
         }
         return user;
     }
@@ -172,7 +191,7 @@ public User registerGoogleUser(RegisterRequest request) {
     @Transactional
     public User updateBio(String email, String newBio) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
         
         UserProfile userProfile = user.getUserProfile();
         if (userProfile == null) {
@@ -188,10 +207,10 @@ public User registerGoogleUser(RegisterRequest request) {
     @Transactional
     public User updateProfileImage(String email, MultipartFile newProfileImageFile) throws IOException {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
         if (newProfileImageFile == null || newProfileImageFile.isEmpty()) {
-            throw new IllegalArgumentException("업데이트할 이미지 파일이 없습니다.");
+            throw new IllegalArgumentException("No image file provided for update.");
         }
 
         if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
@@ -234,7 +253,7 @@ public User registerGoogleUser(RegisterRequest request) {
                 .orElseThrow(() -> new IllegalArgumentException("Invalid Token"));
 
         if (resetToken.isExpired()) {
-            throw new IllegalArgumentException("만료된 토큰입니다.");
+            throw new IllegalArgumentException("Token has expired.");
         }
 
         User user = resetToken.getUser();

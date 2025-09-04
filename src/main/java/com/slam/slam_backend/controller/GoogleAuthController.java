@@ -146,8 +146,8 @@ public class GoogleAuthController {
                 // If existing user is not Google OAuth user, update provider info
                 if (existingUser.getProvider() == null || !"google".equals(existingUser.getProvider())) {
                     existingUser.setProvider("google");
-                    existingUser.setProviderId(providerId);
-                    existingUser.setOauthId(providerId);
+                    existingUser.setProviderId(providerId != null ? providerId : "google_" + email);
+                    existingUser.setOauthId(providerId != null ? providerId : "google_" + email);
                     if (picture != null) {
                         existingUser.setProfileImage(picture);
                     }

@@ -64,7 +64,7 @@ public class EventController {
     @GetMapping("/{eventId}/attendance-status")
     public ResponseEntity<?> getAttendanceStatus(@PathVariable Long eventId, Authentication authentication) {
         if (authentication == null) {
-            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+            return ResponseEntity.status(401).body("Login required.");
         }
 
         try {
@@ -98,7 +98,7 @@ public class EventController {
             
             return ResponseEntity.ok(status);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("상태 확인 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Error checking status: " + e.getMessage());
         }
     }
 
@@ -134,7 +134,7 @@ public class EventController {
         System.out.println("RSVP Request toString: " + rsvpRequest.toString());
         
         if (authentication == null) {
-            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+            return ResponseEntity.status(401).body("Login required.");
         }
 
         try {
@@ -160,7 +160,7 @@ public class EventController {
     @GetMapping("/my-rsvp")
     public ResponseEntity<?> getMyRsvp(@RequestParam Long eventId, Authentication authentication) {
         if (authentication == null) {
-            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+            return ResponseEntity.status(401).body("Login required.");
         }
 
         try {
@@ -187,7 +187,7 @@ public class EventController {
     @PostMapping
     public ResponseEntity<?> createEvent(@RequestBody EventDTO eventDTO, Authentication authentication) {
         if (authentication == null) {
-            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+            return ResponseEntity.status(401).body("Login required.");
         }
         
         try {
@@ -202,7 +202,7 @@ public class EventController {
     @PutMapping("/{eventId}")
     public ResponseEntity<?> updateEvent(@PathVariable Long eventId, @RequestBody EventDTO eventDTO, Authentication authentication) {
         if (authentication == null) {
-            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+            return ResponseEntity.status(401).body("Login required.");
         }
         
         try {
@@ -245,12 +245,12 @@ public class EventController {
     @DeleteMapping("/{eventId}")
     public ResponseEntity<?> deleteEvent(@PathVariable Long eventId, Authentication authentication) {
         if (authentication == null) {
-            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+            return ResponseEntity.status(401).body("Login required.");
         }
         
         try {
             eventService.deleteEvent(eventId);
-            return ResponseEntity.ok(Map.of("message", "이벤트가 삭제되었습니다."));
+            return ResponseEntity.ok(Map.of("message", "Event deleted successfully."));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -264,7 +264,7 @@ public class EventController {
             Authentication authentication) {
         
         if (authentication == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "로그인이 필요합니다."));
+            return ResponseEntity.status(401).body(Map.of("error", "Login required."));
         }
         
         try {
