@@ -95,7 +95,13 @@ public class GoogleAuthController {
                 // 토큰 교환 실패 시 더 구체적인 에러 메시지
                 String errorMessage = "Failed to get access token";
                 if (tokenResponse.getBody() != null && tokenResponse.getBody().containsKey("error")) {
-                    errorMessage = "Google OAuth error: " + tokenResponse.getBody().get("error");
+                    String googleError = (String) tokenResponse.getBody().get("error");
+                    errorMessage = "Google OAuth error: " + googleError;
+                    
+                    // invalid_grant 오류인 경우 특별 처리
+                    if ("invalid_grant".equals(googleError)) {
+                        errorMessage = "Authorization code expired or already used. Please try logging in again.";
+                    }
                 }
                 return ResponseEntity.badRequest().body(Map.of("error", errorMessage));
             }
