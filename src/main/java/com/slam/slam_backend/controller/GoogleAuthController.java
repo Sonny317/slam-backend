@@ -17,6 +17,7 @@ import com.slam.slam_backend.entity.MembershipType;
 import java.util.HashMap;
 import java.net.URLEncoder;
 import java.io.UnsupportedEncodingException;
+import java.time.LocalDateTime;
 
 @RestController
 @RequiredArgsConstructor
@@ -170,25 +171,47 @@ public class GoogleAuthController {
             }
             
             if (existingUser == null) {
-                System.out.println("New user detected: " + email + " - Returning user data for terms agreement");
-                // For new users, return user data (LoginPage will handle terms agreement)
-                Map<String, Object> userData = new HashMap<>();
-                userData.put("email", email);
-                userData.put("name", name != null ? name : "Google User");
-                userData.put("providerId", providerId != null ? providerId : "google_" + email);
-                userData.put("picture", picture);
-                
-                System.out.println("User data being sent to frontend: " + userData);
-                
-                Map<String, Object> response = new HashMap<>();
-                response.put("isNewUser", true);
-                response.put("userData", userData);
-                response.put("message", "New user - terms agreement required");
-                response.put("status", "new_user");
-                
-                System.out.println("Response for new user: " + response);
-                System.out.println("=== Google OAuth Callback End (New User) ===");
-                return ResponseEntity.ok(response);
+                System.out.println("New user detected: " + email + " - Creating user directly");
+                // For new users, create account directly and return for terms agreement
+                try {
+                    // Create user directly
+                    User newUser = User.builder()
+                            .name(name != null ? name : "Google User")
+                            .email(email)
+                            .password(null) // Google OAuth users don't have password
+                            .role(UserRole.MEMBER)
+                            .status(UserStatus.PRE_MEMBER)
+                            .provider("google")
+                            .providerId(providerId != null ? providerId : "google_" + email)
+                            .oauthId(providerId != null ? providerId : "google_" + email)
+                            .profileImage(picture)
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    
+                    newUser = userRepository.save(newUser);
+                    System.out.println("New Google OAuth user created: " + newUser.getId());
+                    
+                    // Return user data for terms agreement
+                    Map<String, Object> userData = new HashMap<>();
+                    userData.put("email", email);
+                    userData.put("name", name != null ? name : "Google User");
+                    userData.put("providerId", providerId != null ? providerId : "google_" + email);
+                    userData.put("picture", picture);
+                    userData.put("userId", newUser.getId());
+                    
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("isNewUser", true);
+                    response.put("userData", userData);
+                    response.put("message", "New user - terms agreement required");
+                    response.put("status", "new_user");
+                    
+                    System.out.println("Response for new user: " + response);
+                    System.out.println("=== Google OAuth Callback End (New User) ===");
+                    return ResponseEntity.ok(response);
+                } catch (Exception createError) {
+                    System.err.println("Failed to create new user: " + createError.getMessage());
+                    return ResponseEntity.badRequest().body(Map.of("error", "Failed to create user account"));
+                }
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
                 // If existing user is not Google OAuth user, update provider info

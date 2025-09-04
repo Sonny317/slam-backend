@@ -15,6 +15,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.slam.slam_backend.dto.PasswordResetRequest;
+import com.slam.slam_backend.entity.UserStatus;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.HashMap;
 
 @RestController
 @RequiredArgsConstructor
@@ -425,6 +427,50 @@ public class UserController {
             return ResponseEntity.ok(MyPageResponse.fromEntity(updatedUser));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/auth/update-terms")
+    public ResponseEntity<?> updateTermsAgreement(@RequestBody Map<String, Object> request) {
+        try {
+            System.out.println("=== Update Terms Agreement Debug ===");
+            System.out.println("Request: " + request);
+            
+            Long userId = Long.valueOf(request.get("userId").toString());
+            Boolean termsOfServiceAgreed = (Boolean) request.get("termsOfServiceAgreed");
+            Boolean privacyPolicyAgreed = (Boolean) request.get("privacyPolicyAgreed");
+            Boolean eventPhotoAgreed = (Boolean) request.get("eventPhotoAgreed");
+            
+            // Validate terms agreement
+            if (!termsOfServiceAgreed || !privacyPolicyAgreed || !eventPhotoAgreed) {
+                return ResponseEntity.badRequest().body("All terms must be agreed to");
+            }
+            
+            // Find user and update status
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            
+            user.setStatus(UserStatus.ACTIVE_MEMBER); // Change from PRE_MEMBER to ACTIVE_MEMBER
+            user = userRepository.save(user);
+            
+            // Generate JWT token
+            String token = jwtTokenProvider.generateToken(user.getEmail());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Terms agreement updated successfully");
+            response.put("token", token);
+            response.put("email", user.getEmail());
+            response.put("name", user.getName());
+            response.put("role", user.getRole().name());
+            response.put("profileImage", user.getProfileImage());
+            
+            System.out.println("Terms agreement updated for user: " + user.getEmail());
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("Error updating terms agreement: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Failed to update terms agreement: " + e.getMessage());
         }
     }
 
