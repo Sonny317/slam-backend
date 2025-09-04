@@ -103,7 +103,14 @@ public class GoogleAuthController {
                         errorMessage = "Authorization code expired or already used. Please try logging in again.";
                     }
                 }
-                return ResponseEntity.badRequest().body(Map.of("error", errorMessage));
+                
+                // 토큰 교환 실패 시 신규 사용자 응답을 반환하지 않고 순수 에러만 반환
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", errorMessage);
+                errorResponse.put("status", "error");
+                errorResponse.put("requiresRetry", true);
+                
+                return ResponseEntity.badRequest().body(errorResponse);
             }
             
             String accessToken = (String) tokenResponse.getBody().get("access_token");
