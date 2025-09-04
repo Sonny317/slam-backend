@@ -185,8 +185,9 @@ public class GoogleAuthController {
                             .providerId(providerId != null ? providerId : "google_" + email)
                             .oauthId(providerId != null ? providerId : "google_" + email)
                             .profileImage(picture)
-                            .createdAt(LocalDateTime.now())
                             .build();
+                    
+                    // createdAt will be set automatically by @PrePersist
                     
                     newUser = userRepository.save(newUser);
                     System.out.println("New Google OAuth user created: " + newUser.getId());
@@ -209,8 +210,12 @@ public class GoogleAuthController {
                     System.out.println("=== Google OAuth Callback End (New User) ===");
                     return ResponseEntity.ok(response);
                 } catch (Exception createError) {
-                    System.err.println("Failed to create new user: " + createError.getMessage());
-                    return ResponseEntity.badRequest().body(Map.of("error", "Failed to create user account"));
+                    System.err.println("=== Failed to create new user ===");
+                    System.err.println("Error message: " + createError.getMessage());
+                    System.err.println("Error type: " + createError.getClass().getSimpleName());
+                    createError.printStackTrace();
+                    System.err.println("=== Create Error End ===");
+                    return ResponseEntity.badRequest().body(Map.of("error", "Failed to create user account: " + createError.getMessage()));
                 }
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
