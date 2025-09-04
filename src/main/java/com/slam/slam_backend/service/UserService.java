@@ -73,16 +73,21 @@ public User registerUser(RegisterRequest request) {
     System.out.println("Request googleId: " + request.getGoogleId());
     System.out.println("Request name: " + request.getName());
     System.out.println("Request password: " + (request.getPassword() != null ? "NOT_NULL" : "NULL"));
+    System.out.println("Request code: " + (request.getCode() != null ? "NOT_NULL" : "NULL"));
     
-    // Google OAuth 사용자인 경우 별도 처리
+    // Google OAuth 사용자인 경우 별도 처리 (인증코드 검증 이전에 체크)
     if (request.isGoogleUser()) {
-        System.out.println("Processing as Google OAuth user");
+        System.out.println("Processing as Google OAuth user - skipping verification code check");
         return registerGoogleUser(request);
     }
     
     System.out.println("Processing as regular user - checking verification code");
     
     // 1. 인증코드 검증 및 비밀번호 유효성 검사 (일반 사용자만)
+    if (request.getCode() == null || request.getCode().isEmpty()) {
+        throw new IllegalArgumentException("Verification code is required for regular users");
+    }
+    
     VerificationCode storedCode = verificationCodeRepository.findByEmail(request.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("Verification code not issued or expired"));
 
