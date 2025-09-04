@@ -174,6 +174,23 @@ public class GoogleAuthController {
                 System.out.println("New user detected: " + email + " - Creating user directly");
                 // For new users, create account directly and return for terms agreement
                 try {
+                    // Double-check to prevent race condition
+                    existingUser = userRepository.findByEmail(email).orElse(null);
+                    if (existingUser != null) {
+                        System.out.println("User already exists (race condition detected): " + email);
+                        // Process as existing user
+                        String token = jwtTokenProvider.generateToken(existingUser.getEmail());
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("message", "Google OAuth login successful");
+                        response.put("status", "success");
+                        response.put("token", token);
+                        response.put("email", existingUser.getEmail());
+                        response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
+                        response.put("profileImage", existingUser.getProfileImage());
+                        response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
+                        return ResponseEntity.ok(response);
+                    }
+                    
                     // Create user directly
                     User newUser = User.builder()
                             .name(name != null ? name : "Google User")
@@ -215,6 +232,29 @@ public class GoogleAuthController {
                     System.err.println("Error type: " + createError.getClass().getSimpleName());
                     createError.printStackTrace();
                     System.err.println("=== Create Error End ===");
+                    
+                    // If constraint violation (user already exists), try to find existing user and login
+                    if (createError.getMessage().contains("constraint") || createError.getMessage().contains("duplicate")) {
+                        System.out.println("Constraint violation detected - attempting to login existing user");
+                        try {
+                            existingUser = userRepository.findByEmail(email).orElse(null);
+                            if (existingUser != null) {
+                                String token = jwtTokenProvider.generateToken(existingUser.getEmail());
+                                Map<String, Object> response = new HashMap<>();
+                                response.put("message", "Google OAuth login successful (existing user)");
+                                response.put("status", "success");
+                                response.put("token", token);
+                                response.put("email", existingUser.getEmail());
+                                response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
+                                response.put("profileImage", existingUser.getProfileImage());
+                                response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
+                                return ResponseEntity.ok(response);
+                            }
+                        } catch (Exception loginError) {
+                            System.err.println("Failed to login existing user after constraint violation: " + loginError.getMessage());
+                        }
+                    }
+                    
                     return ResponseEntity.badRequest().body(Map.of("error", "Failed to create user account: " + createError.getMessage()));
                 }
             } else {
