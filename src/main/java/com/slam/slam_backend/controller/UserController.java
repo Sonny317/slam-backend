@@ -43,12 +43,17 @@ public class UserController {
             System.out.println("=== Controller Register Debug ===");
             System.out.println("Request body isGoogleUser: " + request.isGoogleUser());
             System.out.println("Request body email: " + request.getEmail());
+            System.out.println("Request body name: " + request.getName());
+            System.out.println("Request body googleId: " + request.getGoogleId());
+            System.out.println("Request body terms: " + request.isTermsOfServiceAgreed() + ", " + request.isPrivacyPolicyAgreed() + ", " + request.isEventPhotoAgreed());
             
             User user = userService.registerUser(request);
+            System.out.println("User registered successfully: " + user.getEmail());
             
             // Google OAuth 사용자인 경우 바로 토큰 생성하여 반환
             if (request.isGoogleUser()) {
                 String token = jwtTokenProvider.generateToken(user.getEmail());
+                System.out.println("JWT token generated for Google user: " + user.getEmail());
                 
                 LoginResponse responseDto = LoginResponse.builder()
                         .token(token)
@@ -58,13 +63,19 @@ public class UserController {
                         .role(user.getRole().name())
                         .build();
                 
+                System.out.println("Returning response for Google user registration");
                 return ResponseEntity.ok(responseDto);
             } else {
                 // 일반 회원가입의 경우 기존과 동일
                 return ResponseEntity.ok("Registration completed");
             }
         } catch (IllegalArgumentException e) {
+            System.err.println("Registration error: " + e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Unexpected registration error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Registration failed: " + e.getMessage());
         }
     }
 
