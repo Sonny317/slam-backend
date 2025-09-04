@@ -119,8 +119,16 @@ public class GoogleAuthController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required but not provided by Google"));
             }
             
-            // 더 명확한 로직
-            User existingUser = userRepository.findByEmail(email).orElse(null);
+            // 더 명확한 로직 - 데이터베이스 조회 실패 처리 추가
+            User existingUser = null;
+            try {
+                existingUser = userRepository.findByEmail(email).orElse(null);
+                System.out.println("Database query completed for email: " + email);
+            } catch (Exception dbError) {
+                System.err.println("Database query failed for email: " + email + ", Error: " + dbError.getMessage());
+                // 데이터베이스 조회 실패 시 신규 사용자로 처리
+                existingUser = null;
+            }
 
             if (existingUser == null) {
                 // 완전히 새로운 사용자
@@ -158,35 +166,51 @@ public class GoogleAuthController {
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
                 // If existing user is not Google OAuth user, update provider info
-                if (existingUser.getProvider() == null || !"google".equals(existingUser.getProvider())) {
-                    existingUser.setProvider("google");
-                    existingUser.setProviderId(providerId != null ? providerId : "google_" + email);
-                    existingUser.setOauthId(providerId != null ? providerId : "google_" + email);
-                    if (picture != null) {
-                        existingUser.setProfileImage(picture);
+                try {
+                    if (existingUser.getProvider() == null || !"google".equals(existingUser.getProvider())) {
+                        existingUser.setProvider("google");
+                        existingUser.setProviderId(providerId != null ? providerId : "google_" + email);
+                        existingUser.setOauthId(providerId != null ? providerId : "google_" + email);
+                        if (picture != null) {
+                            existingUser.setProfileImage(picture);
+                        }
+                        existingUser = userRepository.save(existingUser);
+                        System.out.println("Updated existing user with Google OAuth info");
                     }
-                    existingUser = userRepository.save(existingUser);
-                    System.out.println("Updated existing user with Google OAuth info");
+                    
+                    // Existing users can login immediately
+                    String token = jwtTokenProvider.generateToken(existingUser.getEmail());
+                    System.out.println("JWT token generated successfully for existing user");
+                    
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("message", "Google OAuth login successful");
+                    response.put("code", code);
+                    response.put("status", "success");
+                    response.put("token", token);
+                    response.put("email", existingUser.getEmail());
+                    response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
+                    response.put("profileImage", existingUser.getProfileImage());
+                    response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
+                    
+                    System.out.println("Response: " + response);
+                    System.out.println("=== Google OAuth Callback End ===");
+                    
+                    return ResponseEntity.ok(response);
+                } catch (Exception updateError) {
+                    System.err.println("Failed to update existing user: " + updateError.getMessage());
+                    // 업데이트 실패 시에도 로그인은 허용
+                    String token = jwtTokenProvider.generateToken(existingUser.getEmail());
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("message", "Google OAuth login successful (update failed)");
+                    response.put("status", "success");
+                    response.put("token", token);
+                    response.put("email", existingUser.getEmail());
+                    response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
+                    response.put("profileImage", existingUser.getProfileImage());
+                    response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
+                    
+                    return ResponseEntity.ok(response);
                 }
-                
-                // Existing users can login immediately
-                String token = jwtTokenProvider.generateToken(existingUser.getEmail());
-                System.out.println("JWT token generated successfully for existing user");
-                
-                Map<String, Object> response = new HashMap<>();
-                response.put("message", "Google OAuth login successful");
-                response.put("code", code);
-                response.put("status", "success");
-                response.put("token", token);
-                response.put("email", existingUser.getEmail());
-                response.put("name", existingUser.getName() != null ? existingUser.getName() : "Unknown");
-                response.put("profileImage", existingUser.getProfileImage());
-                response.put("role", existingUser.getRole() != null ? existingUser.getRole().name() : "MEMBER");
-                
-                System.out.println("Response: " + response);
-                System.out.println("=== Google OAuth Callback End ===");
-                
-                return ResponseEntity.ok(response);
             }
         } catch (Exception e) {
             System.err.println("=== Google OAuth Callback Error ===");
