@@ -37,7 +37,7 @@ public class GoogleAuthController {
 
     @GetMapping("/api/auth/google/login")
     public ResponseEntity<?> googleLogin() {
-        // Google OAuth 로그???�이지�?리다?�렉??
+        // Google OAuth login page redirect
         String googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
                 "client_id=" + clientId +
                 "&redirect_uri=" + redirectUri +
@@ -46,7 +46,7 @@ public class GoogleAuthController {
                 "&access_type=offline" +
                 "&prompt=consent";
         
-        // ?�버깅을 ?�한 로그
+        // Debug log
         System.out.println("=== Google OAuth Debug Info ===");
         System.out.println("Client ID: " + clientId);
         System.out.println("Redirect URI: " + redirectUri);
@@ -70,7 +70,7 @@ public class GoogleAuthController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Authorization code is required"));
             }
             
-            // 1. Authorization code�??�세???�큰 교환
+            // 1. Exchange authorization code for access token
             String tokenUrl = "https://oauth2.googleapis.com/token";
             HttpHeaders tokenHeaders = new HttpHeaders();
             tokenHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -91,7 +91,7 @@ public class GoogleAuthController {
             String accessToken = (String) tokenResponse.getBody().get("access_token");
             System.out.println("Access token received: " + accessToken);
             
-            // 2. ?�세???�큰?�로 ?�용???�보 가?�오�?
+            // 2. Get user info using access token
             String userInfoUrl = "https://www.googleapis.com/oauth2/v2/userinfo";
             HttpHeaders userInfoHeaders = new HttpHeaders();
             userInfoHeaders.setBearerAuth(accessToken);
@@ -119,17 +119,19 @@ public class GoogleAuthController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required but not provided by Google"));
             }
             
-            // 3. ?�용?��? 존재?�는지 ?�인 (?�메?�로 ?�인)
+            // 3. Check if user exists (check by email)
             User existingUser = userRepository.findByEmail(email).orElse(null);
             
             if (existingUser == null) {
                 System.out.println("New user detected: " + email + " - Returning user data for terms agreement");
-                // ?�규 ?�용?�인 경우 ?�용???�이??반환 (LoginPage?�서 ?��? ?�의 처리)
+                // For new users, return user data (LoginPage will handle terms agreement)
                 Map<String, Object> userData = new HashMap<>();
                 userData.put("email", email);
                 userData.put("name", name != null ? name : "Google User");
-                userData.put("providerId", providerId);
+                userData.put("providerId", providerId != null ? providerId : "google_" + email);
                 userData.put("picture", picture);
+                
+                System.out.println("User data being sent to frontend: " + userData);
                 
                 Map<String, Object> response = new HashMap<>();
                 response.put("isNewUser", true);
@@ -141,7 +143,7 @@ public class GoogleAuthController {
                 return ResponseEntity.ok(response);
             } else {
                 System.out.println("Existing user found: " + existingUser.getId());
-                // 기존 ?�용?��? Google OAuth ?�용?��? ?�니?�면 provider ?�보 ?�데?�트
+                // If existing user is not Google OAuth user, update provider info
                 if (existingUser.getProvider() == null || !"google".equals(existingUser.getProvider())) {
                     existingUser.setProvider("google");
                     existingUser.setProviderId(providerId);
@@ -153,12 +155,12 @@ public class GoogleAuthController {
                     System.out.println("Updated existing user with Google OAuth info");
                 }
                 
-                // 기존 ?�용?�는 바로 로그??처리
+                // Existing users can login immediately
                 String token = jwtTokenProvider.generateToken(existingUser.getEmail());
                 System.out.println("JWT token generated successfully for existing user");
                 
                 Map<String, Object> response = new HashMap<>();
-                response.put("message", "Google OAuth 로그?�이 ?�공?�습?�다.");
+                response.put("message", "Google OAuth login successful");
                 response.put("code", code);
                 response.put("status", "success");
                 response.put("token", token);
@@ -186,10 +188,10 @@ public class GoogleAuthController {
     public ResponseEntity<?> verifyGoogleToken(@RequestBody Map<String, String> request) {
         try {
             String googleToken = request.get("token");
-            // TODO: Google ?�큰 검�?로직 구현
+            // TODO: Implement Google token verification logic
             
             return ResponseEntity.ok(Map.of(
-                "message", "Google ?�큰 검증이 ?�공?�습?�다.",
+                "message", "Google token verification successful",
                 "status", "verified"
             ));
         } catch (Exception e) {
