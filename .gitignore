@@ -26,8 +26,8 @@ bin/
 # ----------------------------------------------------
 # ⬇️ 가장 중요한 부분: 이 부분을 반드시 추가해야 합니다.
 # 민감한 정보가 담긴 설정 파일을 Git 추적에서 제외합니다.
-application.properties
-application-dev.properties
+src/main/resources/application.properties
+src/main/resources/application-dev.properties
 # ----------------------------------------------------
 
 # Operating System files
