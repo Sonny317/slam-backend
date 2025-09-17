@@ -7,6 +7,7 @@ import com.slam.slam_backend.entity.Event;
 import com.slam.slam_backend.entity.EventRsvp;
 import com.slam.slam_backend.entity.EventType;
 import com.slam.slam_backend.entity.User;
+import com.slam.slam_backend.entity.UserProfile;
 import com.slam.slam_backend.entity.UserRole;
 import com.slam.slam_backend.repository.EventRepository;
 import com.slam.slam_backend.repository.EventRsvpRepository;
@@ -327,13 +328,14 @@ public class EventService {
         System.out.println("🔍 삭제 후 존재 여부: " + stillExists);
     }
 
-    // ✅ 이벤트별 참석자 목록 조회
+    // ✅ 이벤트별 참석자 목록 조회 (모든 RSVP 포함)
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getEventAttendees(Long eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("이벤트를 찾을 수 없습니다: " + eventId));
         
-        List<EventRsvp> rsvps = eventRsvpRepository.findByEvent_IdAndIsAttendingTrue(eventId);
+        // ✅ 모든 RSVP를 가져오도록 수정 (참석자만이 아닌) - UserProfile과 함께 로드
+        List<EventRsvp> rsvps = eventRsvpRepository.findByEvent_IdWithUserProfile(eventId);
         
         return rsvps.stream().map(rsvp -> {
             Map<String, Object> attendee = new HashMap<>();
@@ -341,8 +343,27 @@ public class EventService {
             attendee.put("name", rsvp.getUser().getName());
             attendee.put("email", rsvp.getUser().getEmail());
             attendee.put("membership", rsvp.getUser().getMembership());
+            attendee.put("attending", rsvp.isAttending()); // ✅ attending 필드 추가
             attendee.put("afterParty", rsvp.isAfterParty());
             attendee.put("rsvpDate", rsvp.getCreatedAt());
+            
+            // UserProfile에서 nationality 정보 가져오기
+            try {
+                UserProfile profile = rsvp.getUser().getUserProfile();
+                if (profile != null) {
+                    String nationality = profile.getNationality();
+                    attendee.put("nationality", nationality);
+                    System.out.println("🔍 Event Attendee: " + rsvp.getUser().getName() + ", Nationality: " + nationality);
+                } else {
+                    attendee.put("nationality", null);
+                    System.out.println("🔍 Event Attendee: " + rsvp.getUser().getName() + ", Profile: null");
+                }
+            } catch (Exception e) {
+                // UserProfile이 로드되지 않은 경우 null로 설정
+                attendee.put("nationality", null);
+                System.out.println("🔍 Event Attendee: " + rsvp.getUser().getName() + ", Error: " + e.getMessage());
+            }
+            
             return attendee;
         }).collect(Collectors.toList());
     }

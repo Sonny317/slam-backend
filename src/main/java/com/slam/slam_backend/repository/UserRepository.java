@@ -26,4 +26,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // ✅ 멤버십이 null이 아닌 사용자들 조회
     @Query("SELECT u FROM User u WHERE u.membership IS NOT NULL AND u.membership != ''")
     List<User> findUsersWithMembership();
+    
+    // ✅ 특정 지부의 사용자들을 UserProfile과 함께 조회
+    @Query("SELECT u FROM User u " +
+           "LEFT JOIN FETCH u.userProfile " +
+           "WHERE u.membership = :branchName")
+    List<User> findByExactMembershipWithProfile(@Param("branchName") String branchName);
+    
+    // ✅ 모든 사용자를 UserProfile과 함께 조회
+    @Query("SELECT u FROM User u " +
+           "LEFT JOIN FETCH u.userProfile")
+    List<User> findAllWithProfile();
 }

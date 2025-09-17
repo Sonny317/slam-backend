@@ -423,7 +423,8 @@ public class AdminController {
     
     @GetMapping("/users")
     public ResponseEntity<List<Map<String, Object>>> getAllUsers(@RequestParam(name = "sort", required = false, defaultValue = "name") String sort) {
-        List<User> users = userRepository.findAll();
+        // UserProfile과 함께 로드하도록 수정
+        List<User> users = userRepository.findAllWithProfile();
         if ("name".equalsIgnoreCase(sort)) {
             users.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         } else if ("createdAt".equalsIgnoreCase(sort)) {
@@ -464,6 +465,11 @@ public class AdminController {
                 userMap.put("industry", profile.getIndustry());
                 userMap.put("networkingGoal", profile.getNetworkingGoal());
                 userMap.put("otherNetworkingGoal", profile.getOtherNetworkingGoal());
+                
+                // 디버깅 로그 추가
+                System.out.println("🔍 User: " + user.getName() + ", Nationality: " + profile.getNationality());
+            } else {
+                System.out.println("🔍 User: " + user.getName() + ", Profile: null");
             }
             return userMap;
         }).collect(Collectors.toList());
@@ -474,21 +480,26 @@ public class AdminController {
     public ResponseEntity<List<Map<String, Object>>> getUsersByBranch(@RequestParam String branchName, @RequestParam(name = "sort", required = false, defaultValue = "name") String sort) {
         try {
             java.util.Map<Long, User> idToUser = new java.util.LinkedHashMap<>();
-            List<UserMembership> activeMemberships = userMembershipRepository.findByBranchNameIgnoreCaseAndStatusIgnoreCase(branchName, "ACTIVE");
+            List<UserMembership> activeMemberships = userMembershipRepository.findByBranchNameIgnoreCaseAndStatusIgnoreCaseWithProfile(branchName, "ACTIVE");
             for (UserMembership um : activeMemberships) {
                 if (um != null && um.getUser() != null && um.getUser().getId() != null) {
                     idToUser.put(um.getUser().getId(), um.getUser());
                 }
             }
-            List<User> usersFromStringField = userRepository.findByMembershipContaining(branchName);
+            List<User> usersFromStringField = userRepository.findByExactMembershipWithProfile(branchName);
             for (User u : usersFromStringField) {
                 if (u != null && u.getId() != null) {
                     idToUser.put(u.getId(), u);
                 }
             }
             List<User> adminUsers = userRepository.findByRole(UserRole.ADMIN);
+            // ADMIN 사용자들의 UserProfile도 로드
             for (User admin : adminUsers) {
                 if (admin != null && admin.getId() != null) {
+                    // UserProfile이 로드되지 않은 경우 명시적으로 로드
+                    if (admin.getUserProfile() == null) {
+                        admin = userRepository.findById(admin.getId()).orElse(admin);
+                    }
                     idToUser.put(admin.getId(), admin);
                 }
             }
@@ -508,6 +519,23 @@ public class AdminController {
                 m.put("membership", u.getMembership());
                 m.put("branch", branchName);
                 m.put("joinedCount", joinedCount);
+                
+                // UserProfile에서 nationality 정보 가져오기
+                try {
+                    if (u.getUserProfile() != null) {
+                        String nationality = u.getUserProfile().getNationality();
+                        m.put("nationality", nationality);
+                        System.out.println("🔍 Branch User: " + u.getName() + ", Nationality: " + nationality);
+                    } else {
+                        m.put("nationality", null);
+                        System.out.println("🔍 Branch User: " + u.getName() + ", Profile: null");
+                    }
+                } catch (Exception e) {
+                    // UserProfile이 로드되지 않은 경우 null로 설정
+                    m.put("nationality", null);
+                    System.out.println("🔍 Branch User: " + u.getName() + ", Error: " + e.getMessage());
+                }
+                
                 return m;
             }).collect(Collectors.toList());
             return ResponseEntity.ok(withStats);

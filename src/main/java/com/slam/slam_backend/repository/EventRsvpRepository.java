@@ -2,6 +2,8 @@ package com.slam.slam_backend.repository;
 
 import com.slam.slam_backend.entity.EventRsvp;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,4 +31,11 @@ public interface EventRsvpRepository extends JpaRepository<EventRsvp, Long> {
     
     // ✅ 추가: 특정 사용자와 이벤트의 RSVP 존재 여부 확인
     boolean existsByUser_IdAndEvent_Id(Long userId, Long eventId);
+    
+    // ✅ 추가: 특정 이벤트의 모든 RSVP를 User와 UserProfile과 함께 조회
+    @Query("SELECT r FROM EventRsvp r " +
+           "LEFT JOIN FETCH r.user u " +
+           "LEFT JOIN FETCH u.userProfile " +
+           "WHERE r.event.id = :eventId")
+    List<EventRsvp> findByEvent_IdWithUserProfile(@Param("eventId") Long eventId);
 }
