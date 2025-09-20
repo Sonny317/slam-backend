@@ -17,4 +17,7 @@ public interface EventGameRepository extends JpaRepository<EventGame, Long> {
     @Transactional
     @Query("DELETE FROM EventGame eg WHERE eg.eventId = :eventId")
     void deleteByEventId(Long eventId);
+    
+    @Query("SELECT DISTINCT eg.eventId FROM EventGame eg")
+    List<Long> findDistinctEventIds();
 }

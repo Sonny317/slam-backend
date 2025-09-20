@@ -29,6 +29,9 @@ public interface EventRsvpRepository extends JpaRepository<EventRsvp, Long> {
     // ✅ 추가: 특정 사용자가 체크인 완료한 이벤트 수(참여 횟수) 카운트
     long countByUser_IdAndAttendedTrue(Long userId);
     
+    // ✅ 추가: 특정 이벤트의 Will attend 수 카운트 (isAttending = true)
+    long countByEvent_IdAndIsAttendingTrue(Long eventId);
+    
     // ✅ 추가: 특정 사용자와 이벤트의 RSVP 존재 여부 확인
     boolean existsByUser_IdAndEvent_Id(Long userId, Long eventId);
     

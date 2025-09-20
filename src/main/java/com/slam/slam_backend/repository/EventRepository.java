@@ -20,4 +20,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     // ✅ 브랜치별 최대 event_sequence 조회
     @Query("SELECT MAX(e.eventSequence) FROM Event e WHERE e.branch = :branch AND e.eventSequence IS NOT NULL")
     Integer findMaxEventSequenceByBranch(@Param("branch") String branch);
+    
+    // ✅ ID 리스트로 이벤트들을 조회
+    List<Event> findByIdIn(List<Long> ids);
 }

@@ -12,4 +12,5 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     List<Game> findByActiveTrue();
     Optional<Game> findByGameId(String gameId);
     List<Game> findByCategoryAndActiveTrue(String category);
+    List<Game> findByGameIdIn(List<String> gameIds);
 }

@@ -4,8 +4,10 @@ import com.slam.slam_backend.dto.GameCreateRequest;
 import com.slam.slam_backend.dto.GameFeedbackCreateRequest;
 import com.slam.slam_backend.entity.Game;
 import com.slam.slam_backend.entity.GameFeedback;
+import com.slam.slam_backend.entity.EventGame;
 import com.slam.slam_backend.repository.GameRepository;
 import com.slam.slam_backend.repository.GameFeedbackRepository;
+import com.slam.slam_backend.repository.EventGameRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -23,6 +25,9 @@ public class GameService implements ApplicationRunner {
     
     @Autowired
     private GameFeedbackRepository gameFeedbackRepository;
+    
+    @Autowired
+    private EventGameRepository eventGameRepository;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -185,6 +190,40 @@ public class GameService implements ApplicationRunner {
         return gameFeedbackRepository.findByEventIdAndGameId(eventId, gameId);
     }
 
+    /**
+     * 특정 이벤트에 할당된 게임들 조회
+     */
+    public List<Game> getGamesByEventId(Long eventId) {
+        // EventGame 엔티티를 통해 이벤트에 할당된 게임들을 조회
+        List<EventGame> eventGames = eventGameRepository.findByEventId(eventId);
+        List<String> gameIds = eventGames.stream()
+                .map(EventGame::getGameId)
+                .toList();
+        
+        if (gameIds.isEmpty()) {
+            return List.of(); // 할당된 게임이 없으면 빈 리스트 반환
+        }
+        
+        return gameRepository.findByGameIdIn(gameIds);
+    }
+    
+    /**
+     * 이벤트에 게임들 할당
+     */
+    @Transactional
+    public void assignGamesToEvent(Long eventId, List<String> gameIds) {
+        // 기존 할당된 게임들 삭제
+        eventGameRepository.deleteByEventId(eventId);
+        
+        // 새로운 게임들 할당
+        for (String gameId : gameIds) {
+            EventGame eventGame = new EventGame(eventId, gameId);
+            eventGameRepository.save(eventGame);
+        }
+        
+        System.out.println("Assigned games to event: " + eventId + ", games: " + gameIds);
+    }
+    
     /**
      * 고유한 게임 ID 생성 
      */

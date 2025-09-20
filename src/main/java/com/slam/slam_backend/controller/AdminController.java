@@ -21,8 +21,6 @@ import com.slam.slam_backend.repository.ActionTaskRepository;
 import com.slam.slam_backend.repository.GameRepository;
 import com.slam.slam_backend.repository.EventGameRepository;
 import com.slam.slam_backend.entity.Game;
-import com.slam.slam_backend.entity.EventGame;
-import com.slam.slam_backend.entity.FinanceTransaction;
 import com.slam.slam_backend.service.EventService;
 import com.slam.slam_backend.service.MembershipService;
 import com.slam.slam_backend.service.StaffService;
@@ -30,9 +28,6 @@ import com.slam.slam_backend.service.GameService;
 import com.slam.slam_backend.service.GameAnalyticsService;
 import com.slam.slam_backend.service.NotificationService;
 import com.slam.slam_backend.dto.GameCreateRequest;
-import com.slam.slam_backend.dto.GameFeedbackCreateRequest;
-import com.slam.slam_backend.dto.GameAnalyticsDTO;
-import com.slam.slam_backend.entity.GameFeedback;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
@@ -251,8 +246,8 @@ public class AdminController {
         }
     }
 
-    @DeleteMapping("/events")
-    public ResponseEntity<?> deleteEvent(@RequestParam Long eventId, Authentication authentication) {
+    @DeleteMapping("/events/{eventId}")
+    public ResponseEntity<?> deleteEvent(@PathVariable Long eventId, Authentication authentication) {
         if (authentication == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Login required."));
         }
@@ -564,7 +559,81 @@ public class AdminController {
         }
     }
 
-    // (Game and Finance APIs remain the same)
+    // ===== 게임 관리 API =====
+    
+    @GetMapping("/games")
+    public ResponseEntity<List<Game>> getAllGames() {
+        try {
+            System.out.println("Getting all games...");
+            List<Game> games = gameService.getAllGames();
+            System.out.println("Found " + games.size() + " games");
+            return ResponseEntity.ok(games);
+        } catch (Exception e) {
+            System.err.println("Error getting games: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(List.of());
+        }
+    }
+    
+    @GetMapping("/games/active")
+    public ResponseEntity<List<Game>> getActiveGames() {
+        try {
+            List<Game> games = gameService.getAllActiveGames();
+            return ResponseEntity.ok(games);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+    }
+    
+    @PostMapping("/games")
+    public ResponseEntity<?> createGame(@RequestBody GameCreateRequest request) {
+        try {
+            Game game = gameService.createGame(request);
+            return ResponseEntity.ok(game);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PutMapping("/games/{gameId}")
+    public ResponseEntity<?> updateGame(@PathVariable String gameId, @RequestBody GameCreateRequest request) {
+        try {
+            Game game = gameService.updateGame(gameId, request);
+            return ResponseEntity.ok(game);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PutMapping("/games/{gameId}/toggle")
+    public ResponseEntity<?> toggleGameActive(@PathVariable String gameId) {
+        try {
+            Game game = gameService.toggleGameActive(gameId);
+            return ResponseEntity.ok(game);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/events/{eventId}/games")
+    public ResponseEntity<?> getEventGames(@PathVariable Long eventId) {
+        try {
+            List<Game> games = gameService.getGamesByEventId(eventId);
+            return ResponseEntity.ok(games);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+    }
+    
+    @PostMapping("/events/{eventId}/games")
+    public ResponseEntity<?> assignGamesToEvent(@PathVariable Long eventId, @RequestBody List<String> gameIds) {
+        try {
+            gameService.assignGamesToEvent(eventId, gameIds);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
     
     // Helper Methods
     private void createRoleChangeNotification(User target, UserRole previousRole, UserRole newRole, User changer) {
